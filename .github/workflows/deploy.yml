@@ -1,0 +1,63 @@
+name: Deploy
+
+# Builds main and deploys it to Firebase Hosting (live) after every merge.
+# Needs the FIREBASE_SERVICE_ACCOUNT_MONOCHROME_Y secret; until it exists, the deploy step is skipped.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Firebase Hosting
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: https://monochrome-y.web.app
+    env:
+      HAS_DEPLOY_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MONOCHROME_Y != '' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.34.3
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+        env:
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+
+      - name: Deploy
+        if: env.HAS_DEPLOY_KEY == 'true'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MONOCHROME_Y }}
+          projectId: monochrome-y
+          channelId: live
+
+      - name: Deploy skipped
+        if: env.HAS_DEPLOY_KEY != 'true'
+        run: echo "::notice::Deploy skipped. Add the FIREBASE_SERVICE_ACCOUNT_MONOCHROME_Y secret to enable it."

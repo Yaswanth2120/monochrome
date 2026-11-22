@@ -61,7 +61,7 @@ Press **C** to see the record: a year-of-days heatmap, a month grid with the det
 - React 19, TypeScript and Vite
 - three.js for both 3D worlds. Everything is built in code from boxes, lines and canvas-drawn signs, with no 3D model files.
 - Tailwind CSS v4 plus hand-written CSS
-- Data is stored in the browser's `localStorage` only. Nothing is sent anywhere.
+- Firebase (Auth, Firestore and Hosting) for accounts and sync. Until sign-in ships, data stays in the browser's `localStorage`.
 
 ## Getting started
 
@@ -81,6 +81,14 @@ pnpm build    # static site in dist/
 | `pnpm lint`      | Lint with oxlint                                            |
 | `pnpm format`    | Format everything with oxfmt                                |
 | `pnpm check`     | Everything CI runs: typecheck, lint, format check and build |
+
+### Firebase (optional)
+
+Accounts and sync run on Firebase: Auth for Google sign-in, Firestore for data, Hosting for the site. To connect your own project, copy `.env.example` to `.env.local` and fill in your web app config. Without it, MonoChrome runs in local-only mode and keeps data in the browser.
+
+- `firestore.rules` holds the security rules. Deny by default, and users can only read and write their own data.
+- `firebase.json` and `.firebaserc` hold the Hosting and Firestore config for the `monochrome-y` project.
+- Every merge into `main` deploys to Firebase Hosting through `.github/workflows/deploy.yml`.
 
 ## Project layout
 
