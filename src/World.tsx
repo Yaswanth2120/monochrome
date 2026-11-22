@@ -205,10 +205,23 @@ export default function World(props: Props) {
     controls.rotateSpeed = 0.45;
     // One finger swipes to walk; two fingers orbit and pinch.
     controls.touches = { ONE: null, TWO: THREE.TOUCH.DOLLY_ROTATE };
-    // While the user is looking around, the camera stops steering itself for a moment.
-    let userLookUntil = 0;
-    controls.addEventListener("start", () => (userLookUntil = Infinity));
-    controls.addEventListener("end", () => (userLookUntil = performance.now() + 3500));
+    // Camera angle. Left alone, the camera picks its own angle. Once the user drags to look around,
+    // that angle is kept, stored relative to the ring (outward, up, along), so it turns with the
+    // ring as the figure walks instead of snapping back. Reset (0 or the reset button) clears it.
+    let dragging = false;
+    let userView: { outward: number; up: number; along: number } | null = null;
+    let lastOutwardHeading = 0;
+    controls.addEventListener("start", () => (dragging = true));
+    controls.addEventListener("end", () => {
+      dragging = false;
+      const dir = camera.position.clone().sub(controls.target).normalize();
+      const h = lastOutwardHeading;
+      userView = {
+        outward: dir.x * Math.sin(h) + dir.z * Math.cos(h),
+        up: dir.y,
+        along: dir.x * Math.cos(h) - dir.z * Math.sin(h),
+      };
+    });
     controls.update();
 
     // ---------- Plain shading light only: no coloured light, no glows ----------
@@ -949,7 +962,11 @@ export default function World(props: Props) {
     function zoomBy(factor: number) {
       userDistance = THREE.MathUtils.clamp((userDistance ?? cameraDistance) * factor, minDistance, maxDistance);
     }
-    state.current.onZoomReady?.({ zoomBy, reset: () => (userDistance = null) });
+    function resetView() {
+      userDistance = null;
+      userView = null;
+    }
+    state.current.onZoomReady?.({ zoomBy, reset: resetView });
     avatar.rotation.y = walk * ring.step + 0.4;
     const viewShift = { y: 0 };
     const shakeOffset = new THREE.Vector3();
@@ -1039,7 +1056,7 @@ export default function World(props: Props) {
       if (document.querySelector('[role="dialog"]') || event.metaKey || event.ctrlKey) return;
       if (event.key === "+" || event.key === "=") zoomBy(0.8);
       else if (event.key === "-" || event.key === "_") zoomBy(1.25);
-      else if (event.key === "0") userDistance = null;
+      else if (event.key === "0") resetView();
     };
     window.addEventListener("keydown", onKey);
     const canvas = renderer.domElement;
@@ -1143,6 +1160,7 @@ export default function World(props: Props) {
       avatar.position.y += hop * 0.5;
       if (pushOffset > 0.001) avatar.position.addScaledVector(ring.tangent(station), pushOffset);
       const outwardHeading = walk * ring.step;
+      lastOutwardHeading = outwardHeading;
       let facing = outwardHeading + 0.4;
       if (moving) facing = ring.heading(walk) + (distance < 0 ? Math.PI : 0);
       else if (pushing) facing = ring.heading(station);
@@ -1393,7 +1411,7 @@ export default function World(props: Props) {
         THREE.MathUtils.damp(offset.length(), desiredDistance, zoomed ? 7 : autoWide ? 1.4 : 2.2, dt),
       );
       cameraDistance = length;
-      if (performance.now() > userLookUntil) {
+      if (!dragging) {
         const outward = new THREE.Vector3(Math.sin(outwardHeading), 0, Math.cos(outwardHeading));
         const along = new THREE.Vector3(Math.cos(outwardHeading), 0, -Math.sin(outwardHeading));
         const close = outward
@@ -1406,7 +1424,15 @@ export default function World(props: Props) {
           .multiplyScalar(0.62)
           .add(new THREE.Vector3(0, 0.78, 0))
           .normalize();
-        offset.normalize().lerp(close.lerp(far, viewBlend).normalize(), 1 - Math.exp(-dt * 1.4));
+        const auto = close.lerp(far, viewBlend).normalize();
+        const chosen = userView
+          ? new THREE.Vector3(Math.sin(outwardHeading), 0, Math.cos(outwardHeading))
+              .multiplyScalar(userView.outward)
+              .addScaledVector(along, userView.along)
+              .add(new THREE.Vector3(0, userView.up, 0))
+              .normalize()
+          : auto;
+        offset.normalize().lerp(chosen, 1 - Math.exp(-dt * 1.4));
       }
       camera.position.copy(controls.target).add(offset.setLength(length));
       controls.update();
