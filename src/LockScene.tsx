@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { buildHouse, type House } from "./town/house";
@@ -23,7 +23,9 @@ type Caption = { tag: string; text: string; user: boolean };
 export default function LockScene({ signals, lowDetail = false }: { signals: SceneSignals; lowDetail?: boolean }) {
   const host = useRef<HTMLDivElement>(null);
   const signalsRef = useRef(signals);
-  signalsRef.current = signals;
+  useLayoutEffect(() => {
+    signalsRef.current = signals;
+  });
   const [caption, setCaption] = useState<Caption>({ tag: "ROCKY · DISCIPLINED", text: "Waking up", user: false });
   const [following, setFollowing] = useState(false);
   const [away, setAway] = useState(false);

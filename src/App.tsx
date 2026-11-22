@@ -1,12 +1,11 @@
 import { MonoLogo } from "./Logo";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Calendar from "./Calendar";
 import { LOCK_EVENT } from "./LockScreen";
 import { isMuted, onMuteChange, setMuted, sfx } from "./sound";
 import World, { type VowState, type WorldTask, type ZoomControls } from "./World";
 import {
   type DayRecord,
-  type Task,
   type Vow,
   LIGHTS_OUT,
   REQUIRED,
@@ -281,7 +280,9 @@ export default function App() {
 
   // ---------- Hold to commit ----------
   const latest = useRef({ commit, changeCount, togglePart, sealVow, record });
-  latest.current = { commit, changeCount, togglePart, sealVow, record };
+  useLayoutEffect(() => {
+    latest.current = { commit, changeCount, togglePart, sealVow, record };
+  });
   function startHold(key: string, action: () => void) {
     if (holdTimer.current !== undefined) return;
     setHolding(key);
@@ -324,7 +325,9 @@ export default function App() {
 
   // ---------- Navigation ----------
   const stateRef = useRef({ current, unlocked });
-  stateRef.current = { current, unlocked };
+  useLayoutEffect(() => {
+    stateRef.current = { current, unlocked };
+  });
   function goTo(index: number) {
     const { current: now, unlocked: open } = stateRef.current;
     if (index > open && index > now) {
@@ -337,60 +340,62 @@ export default function App() {
   const navigate = (direction: number) => goTo(Math.max(0, Math.min(LAST, stateRef.current.current + direction)));
 
   const keysRef = useRef<(e: KeyboardEvent, down: boolean) => void>(() => {});
-  keysRef.current = (e, down) => {
-    const key = e.key.toLowerCase();
-    // While the lock screen is up, the app ignores the keyboard entirely.
-    if (document.querySelector(".lock")) {
-      cancelHold();
-      return;
-    }
-    if (!down) {
-      if (key === "e") cancelHold();
-      return;
-    }
-    // The calendar page handles its own keys (Esc closes it).
-    if (calendarOpen) return;
-    if (e.key === "Escape") {
-      setPanel(null);
-      setFocus(false);
-      return;
-    }
-    const onControl = e.target instanceof HTMLButtonElement || e.target instanceof HTMLAnchorElement;
-    if (e.key === "Enter" && !panel && !onControl) {
-      e.preventDefault();
-      setFocus(true);
-      return;
-    }
-    if (panel || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-    if (key === "l" && !e.repeat) {
-      cancelHold();
-      window.dispatchEvent(new Event(LOCK_EVENT));
-      return;
-    }
-    if (key === "m" && !e.repeat) {
-      setMuted(!isMuted());
-      return;
-    }
-    if (key === "c" && !e.repeat) {
-      cancelHold();
-      setCalendarOpen(true);
-      return;
-    }
-    if (key === "h" && !e.repeat) {
-      setDockHidden((value) => !value);
-      return;
-    }
-    if (["arrowright", "arrowup", "d", "w"].includes(key)) {
-      e.preventDefault();
-      if (!e.repeat) navigate(1);
-    } else if (["arrowleft", "arrowdown", "a", "s"].includes(key)) {
-      e.preventDefault();
-      if (!e.repeat) navigate(-1);
-    } else if (key === "e" && !e.repeat) {
-      e.preventDefault();
-      holdCurrent();
-    }
-  };
+  useLayoutEffect(() => {
+    keysRef.current = (e, down) => {
+      const key = e.key.toLowerCase();
+      // While the lock screen is up, the app ignores the keyboard entirely.
+      if (document.querySelector(".lock")) {
+        cancelHold();
+        return;
+      }
+      if (!down) {
+        if (key === "e") cancelHold();
+        return;
+      }
+      // The calendar page handles its own keys (Esc closes it).
+      if (calendarOpen) return;
+      if (e.key === "Escape") {
+        setPanel(null);
+        setFocus(false);
+        return;
+      }
+      const onControl = e.target instanceof HTMLButtonElement || e.target instanceof HTMLAnchorElement;
+      if (e.key === "Enter" && !panel && !onControl) {
+        e.preventDefault();
+        setFocus(true);
+        return;
+      }
+      if (panel || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (key === "l" && !e.repeat) {
+        cancelHold();
+        window.dispatchEvent(new Event(LOCK_EVENT));
+        return;
+      }
+      if (key === "m" && !e.repeat) {
+        setMuted(!isMuted());
+        return;
+      }
+      if (key === "c" && !e.repeat) {
+        cancelHold();
+        setCalendarOpen(true);
+        return;
+      }
+      if (key === "h" && !e.repeat) {
+        setDockHidden((value) => !value);
+        return;
+      }
+      if (["arrowright", "arrowup", "d", "w"].includes(key)) {
+        e.preventDefault();
+        if (!e.repeat) navigate(1);
+      } else if (["arrowleft", "arrowdown", "a", "s"].includes(key)) {
+        e.preventDefault();
+        if (!e.repeat) navigate(-1);
+      } else if (key === "e" && !e.repeat) {
+        e.preventDefault();
+        holdCurrent();
+      }
+    };
+  });
   useEffect(() => {
     const down = (e: KeyboardEvent) => keysRef.current(e, true);
     const up = (e: KeyboardEvent) => keysRef.current(e, false);

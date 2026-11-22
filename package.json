@@ -2,12 +2,18 @@
   "name": "monochrome",
   "version": "1.0.0",
   "private": true,
+  "description": "Black-and-white world where discipline is the only colour. A 3D habit tracker.",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "format": "oxfmt"
+    "typecheck": "tsc --noEmit -p .",
+    "lint": "oxlint",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm build"
   },
   "dependencies": {
     "react": "^19.0.0",
@@ -22,8 +28,12 @@
     "@types/three": "^0.187.0",
     "@vitejs/plugin-react": "^6.0.0",
     "oxfmt": "^0.76.0",
+    "oxlint": "^1.94.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0",
     "vite": "^8.1.7"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

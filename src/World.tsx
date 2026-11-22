@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
@@ -148,7 +148,9 @@ export default function World(props: Props) {
   const host = useRef<HTMLDivElement>(null);
   const state = useRef(props);
   const [unavailable, setUnavailable] = useState(false);
-  state.current = props;
+  useLayoutEffect(() => {
+    state.current = props;
+  });
 
   useEffect(() => {
     if (!host.current) return;
@@ -157,6 +159,8 @@ export default function World(props: Props) {
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     } catch {
+      // No WebGL on this device: fall back to the plain view. This only runs once, on mount.
+      // oxlint-disable-next-line react/set-state-in-effect
       setUnavailable(true);
       return;
     }

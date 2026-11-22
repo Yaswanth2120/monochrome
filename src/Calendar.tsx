@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   type DayRecord,
   PROMISES,
@@ -22,7 +22,6 @@ type Props = {
 };
 
 const WEEKDAYS = ["M", "T", "W", "T", "F", "S", "S"];
-const pad = (n: number) => String(n).padStart(2, "0");
 const monthLabel = (year: number, month: number) =>
   new Date(year, month, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 const longDate = (key: string) =>
@@ -79,7 +78,9 @@ export default function Calendar({ history, today, onClose }: Props) {
 
   // Keep the latest close handler without re-running the effect (which would steal focus).
   const closeHandler = useRef(onClose);
-  closeHandler.current = onClose;
+  useLayoutEffect(() => {
+    closeHandler.current = onClose;
+  });
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
