@@ -71,6 +71,19 @@ Press **C** to see the record: a year-of-days heatmap, a month grid with the det
 
 ![The streak calendar](docs/screenshots/calendar.png)
 
+## Install it as an app
+
+MonoChrome is an installable web app (PWA). It gets its own icon, opens full screen, and keeps working offline.
+
+| Device          | How to install                                                                          |
+| --------------- | --------------------------------------------------------------------------------------- |
+| iPhone / iPad   | Open the site in **Safari** → **Share** → **Add to Home Screen**                        |
+| Android         | Open the site in **Chrome** → **Install app** (or ⋮ → **Add to Home screen**)           |
+| Mac             | **Safari**: **File** → **Add to Dock**. **Chrome**: the install icon in the address bar |
+| Windows / Linux | **Chrome** or **Edge**: the install icon in the address bar                             |
+
+Updates arrive on their own: the app checks the network first and falls back to its saved copy when offline.
+
 ## Tech
 
 - React 19, TypeScript and Vite
