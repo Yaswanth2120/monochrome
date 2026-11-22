@@ -29,6 +29,8 @@ All notable changes to MonoChrome are recorded here. The format follows [Keep a 
 
 ### Changed
 
+- New accounts start from a neutral **sample routine** (14 tasks and 2 vows that show off steps, a counter, bonus tasks and a timed lights-out). Personal routines live only in each user's account.
+- The help panel lists your own vows instead of fixed ones.
 - The lock screen's residents use their own fixed demo checklist instead of the user's routine.
 - The lights-out countdown and the counter messages work with any routine.
 - The codebase is formatted with a shared oxfmt config.

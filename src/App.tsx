@@ -1040,8 +1040,10 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
                   <div>
                     <strong>Vows and lights out</strong>
                     <p>
-                      No porn and no alcohol are held all day and sealed after 8 PM. Slips are logged honestly. Lights
-                      out can only be sealed between 8:30 and 11 PM.
+                      {vows.length
+                        ? `${vows.map((vow) => vow.label).join(", ")}: held all day and sealed at night. Slips are logged honestly.`
+                        : "Add vows in Settings: promises held all day and sealed at night."}{" "}
+                      A task with a time window, like lights out, can only be done inside it. Edit both in Settings (,).
                     </p>
                   </div>
                 </div>

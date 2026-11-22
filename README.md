@@ -39,14 +39,14 @@ Around them is a full city. It has a school, a library, an office tower, a café
 
 ## The routine world
 
-After unlocking, the day is a ring of 15 islands, one per task, in a monochrome solar-system world.
+After unlocking, the day is a ring of islands, one per task in your routine, in a monochrome solar-system world.
 
 ![The routine ring](docs/screenshots/world.png)
 
 - **Hold to commit.** Hold **E** (or the button) to complete a task. Tasks unlock strictly in order, so you can't skip ahead.
-- **Counters and bonuses.** "Apply to 5–10 jobs" is a counter. Study/revise and build something are optional bonus tasks.
-- **Lights-out window.** Sleep can only be committed between 8:30 and 11 PM.
-- **Vows.** No porn and no alcohol are held all day and sealed after 8 PM. An honest **I slipped** button records a broken vow.
+- **Steps, counters and bonuses.** A task can be a list of steps (like breakfast) or a counter with a goal and a stretch (like "reach out to 3–5 people"). Bonus tasks are optional and shine brighter.
+- **Time windows.** A task can have one, like lights out (9–11:30 PM in the sample routine). It can only be committed inside the window.
+- **Vows.** Promises like "no phone in bed" are held all day and sealed at night. An honest **I slipped** button records a broken vow.
 - The day rolls over at 4 AM.
 - Sound effects are generated with Web Audio. **M** mutes them, **H** hides the task dock, **L** locks the screen, and the zoom controls work anywhere in the world.
 
