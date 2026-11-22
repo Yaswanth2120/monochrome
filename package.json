@@ -16,6 +16,7 @@
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm build"
   },
   "dependencies": {
+    "firebase": "^13.4.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "three": "^0.187.0"

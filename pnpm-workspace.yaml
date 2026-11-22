@@ -1,0 +1,8 @@
+# Install scripts that are deliberately not run. Neither is needed for the browser build.
+# allowBuilds is the pnpm 11 setting; ignoredBuiltDependencies is the pnpm 10 one (CI, .mise.toml).
+allowBuilds:
+  "@firebase/util": false
+  protobufjs: false
+ignoredBuiltDependencies:
+  - "@firebase/util"
+  - protobufjs

@@ -6,6 +6,9 @@ All notable changes to MonoChrome are recorded here. The format follows [Keep a 
 
 ### Added
 
+- Firebase project setup: a Firestore database in us-central1, deny-by-default security rules, the Hosting config, and a lazily loaded Firebase client (`src/lib/firebase.ts`) with an offline cache.
+- Deploy workflow that publishes `main` to Firebase Hosting after every merge, once the deploy key is added.
+- `.env.example`. Firebase config comes from environment variables, and the app falls back to local-only mode without them.
 - CI on every pull request: typecheck, lint (oxlint), format check (oxfmt) and build.
 - Dependabot updates for npm packages and GitHub Actions.
 - MIT license, contributing guide, code of conduct, security policy, and issue and pull request templates.
