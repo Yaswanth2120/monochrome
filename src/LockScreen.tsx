@@ -108,9 +108,12 @@ export function Gate({ children }: { children: ReactNode }) {
     setMountedFor(identity);
   }, [identity]);
 
+  const signedIn = account.status === "signedIn" ? account : null;
   const context = {
-    uid: account.status === "signedIn" ? account.user.uid : null,
-    name: account.status === "signedIn" ? account.user.name : null,
+    uid: signedIn?.user.uid ?? null,
+    name: signedIn?.user.name ?? null,
+    user: signedIn?.user ?? null,
+    passcode: signedIn?.passcode ?? null,
   };
 
   return (

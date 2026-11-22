@@ -1,6 +1,7 @@
 /**
  * The daily routine and its rules. Each task is its own island on the ring, in this order.
- * Edit TASKS to change the day; the world, the dock and the streak all follow from it.
+ * A routine is data: every user edits their own in Settings, and the world, the dock, the
+ * calendar and the streak all follow from it. DEFAULT_ROUTINE is what a new account starts with.
  */
 
 export type TaskKind = "check" | "parts" | "count";
@@ -40,7 +41,35 @@ export type Task = {
 
 export type Vow = { id: string; label: string; opensAt: number };
 
-export const TASKS: Task[] = [
+export type Routine = { tasks: Task[]; vows: Vow[] };
+
+export const TASK_ICONS: TaskIcon[] = [
+  "brush",
+  "pan",
+  "book",
+  "drop",
+  "egg",
+  "case",
+  "plane",
+  "cube",
+  "plate",
+  "bowl",
+  "chip",
+  "moon",
+];
+export const LIMITS = {
+  tasks: 24,
+  vows: 6,
+  parts: 8,
+  title: 60,
+  name: 14,
+  detail: 120,
+  part: 40,
+  label: 40,
+  count: 99,
+};
+
+const DEFAULT_TASKS: Task[] = [
   {
     id: "brush-am",
     name: "brush",
@@ -157,12 +186,12 @@ export const TASKS: Task[] = [
 ];
 
 /** Held all day, sealed at night. A slip is logged honestly and breaks the streak. */
-export const VOWS: Vow[] = [
+const DEFAULT_VOWS: Vow[] = [
   { id: "no-porn", label: "No porn", opensAt: 20 * 60 },
   { id: "no-alcohol", label: "No alcohol", opensAt: 20 * 60 },
 ];
 
-export const LIGHTS_OUT = 23 * 60;
+export const DEFAULT_ROUTINE: Routine = { tasks: DEFAULT_TASKS, vows: DEFAULT_VOWS };
 
 export type DayRecord = {
   done: string[];
@@ -170,6 +199,10 @@ export type DayRecord = {
   parts: Record<string, number[]>;
   slipped: string[];
   complete?: boolean;
+  /** Promises kept and promised that day, frozen when saved so editing the routine later
+   *  never rewrites old scores. Older records without them are scored against today's routine. */
+  kept?: number;
+  total?: number;
 };
 
 export const emptyDay = (): DayRecord => ({ done: [], counts: {}, parts: {}, slipped: [] });
@@ -205,21 +238,39 @@ export function timing(item: { opensAt?: number; closesAt?: number }, minutes: n
 }
 
 export const isDone = (record: DayRecord, id: string) => record.done.includes(id);
-export const REQUIRED = TASKS.filter((task) => !task.optional);
+export const requiredOf = (routine: Routine) => routine.tasks.filter((task) => !task.optional);
+/** Every promise counted for a day: required tasks plus the vows. */
+export const promisesOf = (routine: Routine) => requiredOf(routine).length + routine.vows.length;
 
 /** The furthest island you may walk to: the first required task not yet done. */
-export function unlockedIndex(record: DayRecord) {
-  const open = TASKS.findIndex((task) => !task.optional && !isDone(record, task.id));
-  return open < 0 ? TASKS.length - 1 : open;
+export function unlockedIndex(record: DayRecord, tasks: Task[]) {
+  const open = tasks.findIndex((task) => !task.optional && !isDone(record, task.id));
+  return open < 0 ? Math.max(0, tasks.length - 1) : open;
 }
 
-export function dayComplete(record: DayRecord) {
+export function dayComplete(record: DayRecord, routine: Routine) {
   return (
     record.slipped.length === 0 &&
-    REQUIRED.every((task) => isDone(record, task.id)) &&
-    VOWS.every((vow) => isDone(record, vow.id))
+    requiredOf(routine).every((task) => isDone(record, task.id)) &&
+    routine.vows.every((vow) => isDone(record, vow.id))
   );
 }
+
+/** Promises kept and promised for a record under a routine. */
+export function scoreOf(record: DayRecord, routine: Routine) {
+  const kept =
+    requiredOf(routine).filter((task) => isDone(record, task.id)).length +
+    routine.vows.filter((vow) => isDone(record, vow.id)).length;
+  return { kept, total: promisesOf(routine) };
+}
+
+/** True once anything at all has been done today; editing the routine then waits until tomorrow. */
+export const hasProgress = (record: DayRecord | undefined) =>
+  !!record &&
+  (record.done.length > 0 ||
+    record.slipped.length > 0 ||
+    Object.values(record.counts).some((n) => n > 0) ||
+    Object.values(record.parts).some((list) => list.length > 0));
 
 const STORAGE_KEY = "stride.days.v3";
 
@@ -236,6 +287,9 @@ export function sanitizeDay(value: unknown): DayRecord | null {
     parts: v.parts && typeof v.parts === "object" ? v.parts : {},
     slipped: Array.isArray(v.slipped) ? v.slipped.filter((id) => typeof id === "string") : [],
     complete: v.complete === true,
+    ...(typeof v.kept === "number" && typeof v.total === "number" && v.total > 0
+      ? { kept: Math.max(0, Math.min(v.kept, v.total)), total: v.total }
+      : {}),
   };
 }
 
@@ -288,15 +342,17 @@ export function addDays(key: string, days: number) {
   return keyOf(date);
 }
 
-/** Every promise counted for a day: required tasks plus the vows. */
-export const PROMISES = REQUIRED.length + VOWS.length;
-
-/** Share of the day's promises kept, 0..1. */
-export function dayScore(record: DayRecord | undefined) {
+/** Share of the day's promises kept, 0..1, using the score frozen into the record when there is one. */
+export function dayScore(record: DayRecord | undefined, routine: Routine) {
   if (!record) return 0;
-  const kept =
-    REQUIRED.filter((task) => isDone(record, task.id)).length + VOWS.filter((vow) => isDone(record, vow.id)).length;
-  return kept / PROMISES;
+  const { kept, total } = record.total ? { kept: record.kept ?? 0, total: record.total } : scoreOf(record, routine);
+  return total ? kept / total : 0;
+}
+
+/** "kept/total" for a record, frozen or computed. */
+export function scoreLabel(record: DayRecord, routine: Routine) {
+  const { kept, total } = record.total ? { kept: record.kept ?? 0, total: record.total } : scoreOf(record, routine);
+  return `${kept}/${total}`;
 }
 
 /** Longest run of consecutive complete days anywhere in the history. */
@@ -320,3 +376,98 @@ export function firstDay(history: Record<string, DayRecord>, today: string) {
   const keys = Object.keys(history).sort();
   return keys[0] && keys[0] < today ? keys[0] : today;
 }
+
+// ---------- Routine validation and editing ----------
+
+const ID = /^[a-z0-9-]{1,40}$/;
+const str = (value: unknown, max: number) => (typeof value === "string" ? value.trim().slice(0, max) : "");
+const int = (value: unknown, min: number, max: number) =>
+  typeof value === "number" && Number.isInteger(value) && value >= min && value <= max ? value : undefined;
+/** Minutes after midnight, up to 4 AM the next morning (the day turns over at 4). */
+const MINUTES_MAX = 28 * 60;
+
+/** A clean Routine from untrusted data (localStorage or Firestore), or null if it isn't one. */
+export function sanitizeRoutine(value: unknown): Routine | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as { tasks?: unknown; vows?: unknown };
+  if (!Array.isArray(v.tasks) || !Array.isArray(v.vows)) return null;
+  const seen = new Set<string>();
+  const tasks: Task[] = [];
+  for (const raw of v.tasks.slice(0, LIMITS.tasks)) {
+    const t = raw as Partial<Task>;
+    const id = typeof t?.id === "string" && ID.test(t.id) && !seen.has(t.id) ? t.id : null;
+    const title = str(t?.title, LIMITS.title);
+    if (!id || !title) continue;
+    seen.add(id);
+    const kind: TaskKind = t.kind === "parts" || t.kind === "count" ? t.kind : "check";
+    const task: Task = {
+      id,
+      name: str(t.name, LIMITS.name) || shortName(title),
+      title,
+      detail: str(t.detail, LIMITS.detail),
+      kind,
+      icon: TASK_ICONS.includes(t.icon as TaskIcon) ? (t.icon as TaskIcon) : "cube",
+    };
+    if (t.optional === true) task.optional = true;
+    if (kind === "parts") {
+      const parts = Array.isArray(t.parts)
+        ? t.parts
+            .map((part) => str(part, LIMITS.part))
+            .filter(Boolean)
+            .slice(0, LIMITS.parts)
+        : [];
+      if (!parts.length) task.kind = "check";
+      else task.parts = parts;
+    }
+    if (kind === "count") {
+      const target = int(t.target, 1, LIMITS.count) ?? 1;
+      task.target = target;
+      task.max = Math.max(target, int(t.max, 1, LIMITS.count) ?? target);
+    }
+    const opensAt = int(t.opensAt, 0, MINUTES_MAX);
+    const closesAt = int(t.closesAt, 0, MINUTES_MAX);
+    if (opensAt !== undefined) task.opensAt = opensAt;
+    if (closesAt !== undefined && (opensAt === undefined || closesAt > opensAt)) task.closesAt = closesAt;
+    tasks.push(task);
+  }
+  const vows: Vow[] = [];
+  for (const raw of v.vows.slice(0, LIMITS.vows)) {
+    const w = raw as Partial<Vow>;
+    const id = typeof w?.id === "string" && ID.test(w.id) && !seen.has(w.id) ? w.id : null;
+    const label = str(w?.label, LIMITS.label);
+    if (!id || !label) continue;
+    seen.add(id);
+    vows.push({ id, label, opensAt: int(w.opensAt, 0, MINUTES_MAX) ?? 20 * 60 });
+  }
+  return tasks.length ? { tasks, vows } : null;
+}
+
+/** First word of a title, lower-case, for the short label on the path list. */
+export function shortName(title: string) {
+  return (
+    title
+      .trim()
+      .split(/\s+/)[0]
+      ?.replace(/[^\p{L}\p{N}-]/gu, "")
+      .toLowerCase()
+      .slice(0, LIMITS.name) || "task"
+  );
+}
+
+/** A stable, unused id from a title ("Read a book" → "read-a-book", "read-a-book-2", …). */
+export function makeId(title: string, taken: Iterable<string>) {
+  const used = new Set(taken);
+  const base =
+    title
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 32) || "item";
+  let id = base;
+  for (let n = 2; used.has(id); n++) id = `${base}-${n}`;
+  return id;
+}
+
+/** Same tasks and vows, in the same order, with the same settings? */
+export const sameRoutine = (a: Routine, b: Routine) => JSON.stringify(a) === JSON.stringify(b);

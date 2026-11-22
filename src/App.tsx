@@ -1,31 +1,31 @@
-import { MonoLogo } from "./Logo";
-import { useAccountContext } from "./lib/account";
-import { useHistory } from "./lib/useHistory";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Calendar from "./Calendar";
+import { MonoLogo } from "./Logo";
+import Settings from "./Settings";
+import { useAccountContext } from "./lib/account";
+import { useHistory } from "./lib/useHistory";
+import { type Pending, useRoutine } from "./lib/useRoutine";
 import { LOCK_EVENT } from "./LockScreen";
 import { isMuted, onMuteChange, setMuted, sfx } from "./sound";
 import World, { type VowState, type WorldTask, type ZoomControls } from "./World";
 import {
   type DayRecord,
+  type Routine,
   type Vow,
-  LIGHTS_OUT,
-  REQUIRED,
-  TASKS,
-  VOWS,
   dayComplete,
   dayKey,
   dayMinutes,
   emptyDay,
   formatMinutes,
   isDone,
+  requiredOf,
+  scoreOf,
   streak,
   timing,
   unlockedIndex,
 } from "./routine";
 
 const HOLD_MS = 650;
-const LAST = TASKS.length - 1;
 const cheers = [
   "Small step. Real progress.",
   "Another promise to yourself, kept.",
@@ -88,25 +88,65 @@ function Close() {
   );
 }
 
+/** Loads the signed-in user's routine and history, then shows the day. */
 export default function App() {
   const { uid } = useAccountContext();
-  const { history, saveDay, ready } = useHistory(uid);
+  const [today, setToday] = useState(() => dayKey(new Date()));
+  useEffect(() => {
+    const id = window.setInterval(() => setToday(dayKey(new Date())), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const routineState = useRoutine(uid, today);
+  const historyState = useHistory(uid);
+  // Wait for the routine so the world is built once, with the right islands.
+  if (!routineState.ready) return <div className="app-loading" aria-busy="true" aria-label="Loading your routine" />;
+  return (
+    <Main
+      routine={routineState.routine}
+      pending={routineState.pending}
+      saveRoutine={routineState.save}
+      cancelPending={routineState.cancelPending}
+      history={historyState.history}
+      saveDay={historyState.saveDay}
+      ready={historyState.ready}
+    />
+  );
+}
+
+type MainProps = {
+  routine: Routine;
+  pending: Pending | null;
+  saveRoutine: (next: Routine, when: "now" | "tomorrow") => Promise<void>;
+  cancelPending: () => Promise<void>;
+  history: Record<string, DayRecord>;
+  saveDay: (key: string, record: DayRecord) => void;
+  ready: boolean;
+};
+
+function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, ready }: MainProps) {
+  const { tasks, vows } = routine;
+  const required = requiredOf(routine);
+  const LAST = tasks.length - 1;
   const [clock, setClock] = useState(() => new Date());
   const today = dayKey(clock);
   const minutes = dayMinutes(clock);
   const record: DayRecord = history[today] ?? emptyDay();
-  const unlocked = unlockedIndex(record);
-  const complete = dayComplete(record);
+  const unlocked = unlockedIndex(record, tasks);
+  const complete = dayComplete(record, routine);
   const currentStreak = streak(history, today);
-  const requiredDone = REQUIRED.filter((task) => isDone(record, task.id)).length;
+  const requiredDone = required.filter((task) => isDone(record, task.id)).length;
 
-  const [current, setCurrent] = useState(() => unlockedIndex(history[dayKey(new Date())] ?? emptyDay()));
+  const [currentRaw, setCurrent] = useState(() => unlockedIndex(history[dayKey(new Date())] ?? emptyDay(), tasks));
+  // The routine can shrink (an edit applied today), so never point past the last island.
+  const current = Math.min(currentRaw, LAST);
   const [panel, setPanel] = useState<"today" | "help" | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [toastKey, setToastKey] = useState(0);
   const [focus, setFocus] = useState(false);
   const [dockHidden, setDockHidden] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const account = useAccountContext();
   const [muted, setMutedState] = useState(isMuted);
   useEffect(() => {
     const unsubscribe = onMuteChange(setMutedState);
@@ -118,7 +158,7 @@ export default function App() {
   const holdTimer = useRef<number | undefined>(undefined);
   const modalRef = useRef<HTMLElement>(null);
   const zoom = useRef<ZoomControls | null>(null);
-  const task = TASKS[current];
+  const task = tasks[current];
 
   // ---------- Clock and day rollover ----------
   useEffect(() => {
@@ -129,16 +169,16 @@ export default function App() {
   useEffect(() => {
     if (lastDay.current === today) return;
     lastDay.current = today;
-    setCurrent(unlockedIndex(history[today] ?? emptyDay()));
-  }, [today, history]);
+    setCurrent(unlockedIndex(history[today] ?? emptyDay(), tasks));
+  }, [today, history, tasks]);
   // When synced history first arrives, start on the first unfinished island (once per mount).
   const placed = useRef(ready);
   useEffect(() => {
     if (!ready || placed.current) return;
     placed.current = true;
     // oxlint-disable-next-line react/set-state-in-effect -- one-off jump once the cloud data lands
-    setCurrent(unlockedIndex(history[today] ?? emptyDay()));
-  }, [ready, history, today]);
+    setCurrent(unlockedIndex(history[today] ?? emptyDay(), tasks));
+  }, [ready, history, today, tasks]);
 
   function show(next: Toast) {
     setToast(next);
@@ -149,7 +189,8 @@ export default function App() {
     show({ label, message, tone: "nudge" });
   }
   function save(next: DayRecord) {
-    next.complete = dayComplete(next);
+    next.complete = dayComplete(next, routine);
+    Object.assign(next, scoreOf(next, routine));
     saveDay(today, next);
     return next;
   }
@@ -160,7 +201,7 @@ export default function App() {
     if (optional) sfx.bonus();
     else if (index === null) sfx.vow();
     else sfx.commit();
-    if (dayComplete(next) && !dayComplete(previous)) {
+    if (dayComplete(next, routine) && !dayComplete(previous, routine)) {
       const days = streak({ ...history, [today]: { ...next, complete: true } }, today);
       show({
         label: "DAY SEALED",
@@ -179,26 +220,27 @@ export default function App() {
       });
     }
     if (index === null || index >= LAST) return;
-    const stretch = TASKS[index].kind === "count" && (next.counts[TASKS[index].id] ?? 0) < (TASKS[index].max ?? 0);
+    const stretch = tasks[index].kind === "count" && (next.counts[tasks[index].id] ?? 0) < (tasks[index].max ?? 0);
     if (!stretch) setCurrent(index + 1);
   }
 
   /** Why something can't be committed right now, if it can't. */
   function blocker(index: number) {
     if (index > unlocked)
-      return `Finish “${TASKS[unlocked].title.replace(/\.$/, "")}” first. The bridge isn’t built yet.`;
-    const item = TASKS[index];
+      return `Finish “${tasks[unlocked].title.replace(/\.$/, "")}” first. The bridge isn’t built yet.`;
+    const item = tasks[index];
     const when = timing(item, minutes);
     if (when === "early" && item.opensAt !== undefined)
       return `${item.title.replace(/\.$/, "")} opens at ${formatMinutes(item.opensAt)}.`;
-    if (when === "missed") return "Lights out was 11 PM. Tonight is gone; tomorrow, earlier.";
+    if (when === "missed" && item.closesAt !== undefined)
+      return `${item.title.replace(/\.$/, "")} closed at ${formatMinutes(item.closesAt)}. Today is gone; tomorrow, earlier.`;
     return null;
   }
   const blockerLabel = (index: number) =>
-    timing(TASKS[index], minutes) === "missed" ? "MISSED" : index > unlocked ? "ONE THING AT A TIME" : "NOT YET";
+    timing(tasks[index], minutes) === "missed" ? "MISSED" : index > unlocked ? "ONE THING AT A TIME" : "NOT YET";
 
   function commit(index: number) {
-    const item = TASKS[index];
+    const item = tasks[index];
     if (isDone(record, item.id)) return;
     const reason = blocker(index);
     if (reason) return nudge(reason, blockerLabel(index));
@@ -206,7 +248,7 @@ export default function App() {
     celebrate(record, next, index, item.optional);
   }
   function undo(index: number) {
-    const item = TASKS[index];
+    const item = tasks[index];
     const parts = { ...record.parts };
     if (item.kind === "parts") delete parts[item.id];
     const counts = { ...record.counts };
@@ -214,7 +256,7 @@ export default function App() {
     save({ ...record, done: record.done.filter((id) => id !== item.id), parts, counts });
   }
   function togglePart(index: number, part: number) {
-    const item = TASKS[index];
+    const item = tasks[index];
     const reason = blocker(index);
     if (reason) return nudge(reason, blockerLabel(index));
     const ticked = record.parts[item.id] ?? [];
@@ -230,7 +272,7 @@ export default function App() {
     if (finished && !isDone(record, item.id)) celebrate(record, next, index);
   }
   function changeCount(index: number, delta: number) {
-    const item = TASKS[index];
+    const item = tasks[index];
     const reason = blocker(index);
     if (reason) return nudge(reason, blockerLabel(index));
     const value = Math.max(0, Math.min(item.max ?? 99, (record.counts[item.id] ?? 0) + delta));
@@ -246,16 +288,16 @@ export default function App() {
       celebrate(record, next, index);
       show({
         label: "LINE CROSSED",
-        message: `${value} sent. Everything past ${item.target} is the stretch. Stay, or walk on →`,
+        message: `${value} done. Everything past ${item.target} is the stretch. Stay, or walk on →`,
         tone: "win",
       });
     } else if (delta > 0 && value === item.max) {
-      show({ label: "STRETCH HIT", message: `${value} applications. Relentless.`, tone: "win" });
+      show({ label: "STRETCH HIT", message: `${value}. The full stretch. Relentless.`, tone: "win" });
       setCurrent(Math.min(LAST, index + 1));
     } else if (delta > 0) {
       show({
-        label: "APPLICATION SENT",
-        message: reached ? `${value} sent today.` : `${value} of ${item.target}. Keep going.`,
+        label: "COUNTED",
+        message: reached ? `${value} today.` : `${value} of ${item.target}. Keep going.`,
         tone: "win",
       });
     }
@@ -311,7 +353,7 @@ export default function App() {
   /** Holding E (or the button) does the natural next thing for the current task. */
   function holdCurrent() {
     const index = current;
-    const item = TASKS[index];
+    const item = tasks[index];
     if (isDone(record, item.id) && item.kind !== "count") return;
     const reason = blocker(index);
     if (reason) return nudge(reason, blockerLabel(index));
@@ -339,7 +381,7 @@ export default function App() {
   function goTo(index: number) {
     const { current: now, unlocked: open } = stateRef.current;
     if (index > open && index > now) {
-      nudge(`Finish “${TASKS[open].title.replace(/\.$/, "")}” first. The bridge isn’t built yet.`);
+      nudge(`Finish “${tasks[open].title.replace(/\.$/, "")}” first. The bridge isn’t built yet.`);
       return false;
     }
     setCurrent(index);
@@ -360,8 +402,8 @@ export default function App() {
         if (key === "e") cancelHold();
         return;
       }
-      // The calendar page handles its own keys (Esc closes it).
-      if (calendarOpen) return;
+      // The calendar and settings pages handle their own keys (Esc closes them).
+      if (calendarOpen || settingsOpen) return;
       if (e.key === "Escape") {
         setPanel(null);
         setFocus(false);
@@ -386,6 +428,11 @@ export default function App() {
       if (key === "c" && !e.repeat) {
         cancelHold();
         setCalendarOpen(true);
+        return;
+      }
+      if (key === "," && !e.repeat) {
+        cancelHold();
+        setSettingsOpen(true);
         return;
       }
       if (key === "h" && !e.repeat) {
@@ -448,26 +495,34 @@ export default function App() {
   }, [panel]);
 
   // ---------- Status line: what matters right now ----------
-  const asleep = isDone(record, "sleep");
-  let status = `ON DECK: ${TASKS[unlocked].title.toUpperCase()}`;
+  // The next required task with a closing time (lights out, by default) drives the countdown.
+  const deadline = required
+    .filter((item) => item.closesAt !== undefined && !isDone(record, item.id))
+    .sort((a, b) => (a.closesAt ?? 0) - (b.closesAt ?? 0))[0];
+  const deadlineName =
+    deadline?.icon === "moon" ? "LIGHTS OUT" : (deadline?.title.replace(/\.$/, "").toUpperCase() ?? "");
+  const closesAt = deadline?.closesAt ?? Infinity;
+  const urgent = !!deadline && minutes >= closesAt - 180;
+  let status = `ON DECK: ${(tasks[unlocked]?.title ?? "").toUpperCase()}`;
   if (complete) status = "DAY SEALED. REST WELL.";
-  else if (!asleep && minutes >= LIGHTS_OUT) status = "PAST LIGHTS OUT. GO TO BED.";
-  else if (!asleep && minutes >= 20 * 60) {
-    const left = LIGHTS_OUT - minutes;
-    status = `LIGHTS OUT IN ${Math.floor(left / 60)}H ${pad(left % 60)}M`;
+  else if (deadline && minutes >= closesAt) status = `PAST ${deadlineName}. TOMORROW, EARLIER.`;
+  else if (urgent) {
+    const left = closesAt - minutes;
+    status = `${deadlineName} IN ${Math.floor(left / 60)}H ${pad(left % 60)}M`;
   }
 
   // ---------- World ----------
-  const worldTasks: WorldTask[] = TASKS.map((item) => ({
+  const worldTasks: WorldTask[] = tasks.map((item) => ({
     done: isDone(record, item.id),
     optional: !!item.optional,
     icon: item.icon,
   }));
-  const vows: VowState[] = VOWS.map((vow) =>
+  const vowStates: VowState[] = vows.map((vow) =>
     record.slipped.includes(vow.id) ? "slipped" : isDone(record, vow.id) ? "kept" : "holding",
   );
-  const counterIndex = TASKS.findIndex((item) => item.kind === "count");
-  const launches = counterIndex >= 0 ? (record.counts[TASKS[counterIndex].id] ?? 0) : 0;
+  const worldKey = `${tasks.map((item) => `${item.icon}${item.optional ? "*" : ""}`).join(",")}|${vows.length}`;
+  const counterIndex = tasks.findIndex((item) => item.kind === "count");
+  const launches = counterIndex >= 0 ? (record.counts[tasks[counterIndex].id] ?? 0) : 0;
 
   // ---------- Current task, as shown in the dock ----------
   const done = isDone(record, task.id);
@@ -475,7 +530,7 @@ export default function App() {
   const locked = current > unlocked;
   const value = record.counts[task.id] ?? 0;
   const ticked = record.parts[task.id] ?? [];
-  let state = task.optional ? "BONUS" : "REQUIRED";
+  let state = task.optional ? "BONUS" : "required";
   if (done) state = "DONE";
   else if (locked) state = "LOCKED";
   else if (when === "early" && task.opensAt !== undefined) state = `OPENS ${formatMinutes(task.opensAt)}`;
@@ -496,10 +551,12 @@ export default function App() {
   return (
     <div className={`game ${focus ? "immersive" : ""} ${dockHidden ? "dock-hidden" : ""}`}>
       <World
+        // A different set of islands (an edited routine) needs a freshly built world.
+        key={worldKey}
         current={current}
         tasks={worldTasks}
         unlocked={unlocked}
-        vows={vows}
+        vows={vowStates}
         launches={launches}
         launchFrom={counterIndex}
         complete={complete}
@@ -522,7 +579,7 @@ export default function App() {
           Mono<span className="wordmark-dot">Chrome</span>
         </a>
         <div className="world-tag" role="status">
-          <span className={`live-point ${!asleep && minutes >= 20 * 60 && !complete ? "urgent" : ""}`} /> {status}
+          <span className={`live-point ${urgent && !complete ? "urgent" : ""}`} /> {status}
         </div>
         <div className="header-actions">
           <button
@@ -535,7 +592,7 @@ export default function App() {
           <button className="quests-link" onClick={() => setPanel("today")}>
             Today{" "}
             <span>
-              {requiredDone}/{REQUIRED.length}
+              {requiredDone}/{required.length}
             </span>
           </button>
           <button
@@ -547,6 +604,28 @@ export default function App() {
             <svg width="11" height="13" viewBox="0 0 18 22" fill="none" aria-hidden="true">
               <path d="M4.5 9V6a4.5 4.5 0 0 1 9 0v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               <rect x="1.5" y="9" width="15" height="11.5" rx="3" fill="currentColor" />
+            </svg>
+          </button>
+          <button
+            className="help-button settings-button"
+            aria-label="Settings (,)"
+            title="Settings (,)"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="3.2" />
+              <path
+                d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
           <button className="help-button" aria-label="How it works" onClick={() => setPanel("help")}>
@@ -565,7 +644,7 @@ export default function App() {
           <span>promise at a time.</span>
         </h1>
         <p>
-          {TASKS.length} islands. One circle.
+          {tasks.length} islands. One circle.
           <br />
           No skipping ahead.
         </p>
@@ -581,7 +660,7 @@ export default function App() {
       </div>
       <aside className="journey-hud" aria-label="Today's tasks">
         <span className="hud-heading">YOUR DAY</span>
-        {TASKS.map((item, i) => (
+        {tasks.map((item, i) => (
           <button
             key={item.id}
             className={`hud-step ${i === current ? "current" : ""} ${isDone(record, item.id) ? "done" : ""} ${i > unlocked ? "locked" : ""} ${item.optional ? "bonus" : ""}`}
@@ -595,7 +674,7 @@ export default function App() {
         ))}
         <span className="hud-bottom">
           {pad(requiredDone)}
-          <span>/{pad(REQUIRED.length)}</span>
+          <span>/{pad(required.length)}</span>
         </span>
       </aside>
       {toast && (
@@ -617,7 +696,7 @@ export default function App() {
       >
         <div className="quest-number">
           <span>{pad(current + 1)}</span>
-          <small>OF {pad(TASKS.length)}</small>
+          <small>OF {pad(tasks.length)}</small>
         </div>
         <div className="phase-body" key={current}>
           <div className="quest-meta">
@@ -690,8 +769,8 @@ export default function App() {
             </button>
           </div>
           <div className="vow-strip" aria-label="Today's vows">
-            <span className="vow-heading">VOWS</span>
-            {VOWS.map((vow, i) => {
+            <span className="vow-heading">vows</span>
+            {vows.map((vow, i) => {
               const kept = isDone(record, vow.id);
               const slipped = record.slipped.includes(vow.id);
               const early = timing(vow, minutes) === "early";
@@ -747,7 +826,7 @@ export default function App() {
             </button>
             <span>
               {pad(current + 1)}
-              <span>/{pad(TASKS.length)}</span>
+              <span>/{pad(tasks.length)}</span>
             </span>
             <button onClick={() => navigate(1)} disabled={current === LAST} aria-label="Next task">
               <Arrow size={13} />
@@ -866,12 +945,12 @@ export default function App() {
             <p>
               {panel === "today"
                 ? "Everything you promised yourself today, and where you stand."
-                : `Your day is a ring of ${TASKS.length} islands around a dark core, one per task. You light it by doing the work, in order.`}
+                : `Your day is a ring of ${tasks.length} islands around a dark core, one per task. You light it by doing the work, in order.`}
             </p>
             {panel === "today" ? (
               <>
                 <div className="panel-quest-list">
-                  {TASKS.map((item, i) => {
+                  {tasks.map((item, i) => {
                     const itemDone = isDone(record, item.id);
                     return (
                       <div
@@ -888,7 +967,7 @@ export default function App() {
                           <span>
                             <strong>{item.title}</strong>
                             <small>
-                              {item.optional ? "BONUS" : "REQUIRED"}
+                              {item.optional ? "BONUS" : "required"}
                               {item.kind === "count" && ` · ${record.counts[item.id] ?? 0}/${item.target}`}
                               {itemDone ? " · DONE" : i > unlocked ? " · LOCKED" : ""}
                             </small>
@@ -898,15 +977,15 @@ export default function App() {
                       </div>
                     );
                   })}
-                  {VOWS.map((vow, i) => (
-                    <div key={vow.id} className={`panel-quest ${vows[i] === "kept" ? "done" : ""}`}>
+                  {vows.map((vow, i) => (
+                    <div key={vow.id} className={`panel-quest ${vowStates[i] === "kept" ? "done" : ""}`}>
                       <button disabled>
                         <span className="panel-index">◦</span>
                         <span>
                           <strong>{vow.label}</strong>
-                          <small>VOW · {vows[i].toUpperCase()}</small>
+                          <small>VOW · {vowStates[i].toUpperCase()}</small>
                         </span>
-                        {vows[i] === "kept" && <Check size={14} />}
+                        {vowStates[i] === "kept" && <Check size={14} />}
                       </button>
                     </div>
                   ))}
@@ -915,7 +994,7 @@ export default function App() {
                   <span>
                     Streak: {currentStreak} {currentStreak === 1 ? "day" : "days"}
                   </span>
-                  <span>{complete ? "DAY SEALED." : `${requiredDone}/${REQUIRED.length} DONE`}</span>
+                  <span>{complete ? "DAY SEALED." : `${requiredDone}/${required.length} DONE`}</span>
                 </div>
               </>
             ) : (
@@ -993,7 +1072,21 @@ export default function App() {
           </section>
         </div>
       )}
-      {calendarOpen && <Calendar history={history} today={today} onClose={() => setCalendarOpen(false)} />}
+      {calendarOpen && (
+        <Calendar history={history} routine={routine} today={today} onClose={() => setCalendarOpen(false)} />
+      )}
+      {settingsOpen && (
+        <Settings
+          routine={routine}
+          pending={pending}
+          today={today}
+          todayRecord={history[today]}
+          account={account}
+          saveRoutine={saveRoutine}
+          cancelPending={cancelPending}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
     </div>
   );
 }
