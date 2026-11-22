@@ -34,8 +34,14 @@ const Z_FULL = [OUTER.north, LOOP.north, LOOP.south, OUTER.south];
 const Z_DOWNTOWN = [OUTER.north, LOOP.north, 2, 18, LOOP.south, OUTER.south];
 type Block = { x0: number; z0: number; x1: number; z1: number; zone: "west" | "middle" | "east" };
 const BLOCKS: Block[] = [];
-for (let i = 0; i < 3; i++) BLOCKS.push({ x0: OUTER.west, x1: -LOOP.x, z0: Z_FULL[i], z1: Z_FULL[i + 1], zone: "west" });
-for (const [z0, z1] of [[OUTER.north, LOOP.north], [LOOP.north, STREET_Z], [STREET_Z, LOOP.south], [LOOP.south, OUTER.south]])
+for (let i = 0; i < 3; i++)
+  BLOCKS.push({ x0: OUTER.west, x1: -LOOP.x, z0: Z_FULL[i], z1: Z_FULL[i + 1], zone: "west" });
+for (const [z0, z1] of [
+  [OUTER.north, LOOP.north],
+  [LOOP.north, STREET_Z],
+  [STREET_Z, LOOP.south],
+  [LOOP.south, OUTER.south],
+])
   BLOCKS.push({ x0: -LOOP.x, x1: LOOP.x, z0, z1, zone: "middle" });
 for (let c = 2; c < X_LINES.length - 1; c++)
   for (let r = 0; r < Z_DOWNTOWN.length - 1; r++)
@@ -81,13 +87,27 @@ export function buildTown(kit: Kit, scene: THREE.Scene) {
     for (let i = 0; i < steps; i++) {
       const a = i / steps;
       const b = (i + 0.5) / steps;
-      roadLines.push(new THREE.Vector3(x0 + (x1 - x0) * a, 0.05, z0 + (z1 - z0) * a), new THREE.Vector3(x0 + (x1 - x0) * b, 0.05, z0 + (z1 - z0) * b));
+      roadLines.push(
+        new THREE.Vector3(x0 + (x1 - x0) * a, 0.05, z0 + (z1 - z0) * a),
+        new THREE.Vector3(x0 + (x1 - x0) * b, 0.05, z0 + (z1 - z0) * b),
+      );
     }
   };
   const road = (x0: number, z0: number, x1: number, z1: number) => {
     const horizontal = z0 === z1;
     const length = horizontal ? Math.abs(x1 - x0) : Math.abs(z1 - z0);
-    box(horizontal ? length + ROAD_W : ROAD_W, 0.03, horizontal ? ROAD_W : length + ROAD_W, m.road, (x0 + x1) / 2, 0, (z0 + z1) / 2, scene, null, false);
+    box(
+      horizontal ? length + ROAD_W : ROAD_W,
+      0.03,
+      horizontal ? ROAD_W : length + ROAD_W,
+      m.road,
+      (x0 + x1) / 2,
+      0,
+      (z0 + z1) / 2,
+      scene,
+      null,
+      false,
+    );
     dashed(x0, z0, x1, z1);
   };
   // The residential street, the full-width roads, the downtown cross streets and every avenue.
@@ -95,7 +115,12 @@ export function buildTown(kit: Kit, scene: THREE.Scene) {
   Z_FULL.forEach((z) => road(OUTER.west, z, OUTER.east, z));
   [2, 18].forEach((z) => road(LOOP.x, z, OUTER.east, z));
   X_LINES.forEach((x) => road(x, OUTER.north, x, OUTER.south));
-  scene.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(roadLines), new THREE.LineBasicMaterial({ color: 0xbdbdc2 })));
+  scene.add(
+    new THREE.LineSegments(
+      new THREE.BufferGeometry().setFromPoints(roadLines),
+      new THREE.LineBasicMaterial({ color: 0xbdbdc2 }),
+    ),
+  );
 
   // Pavements: a ring just inside every block, so they never cross a road.
   const pave = 0.8;
@@ -105,17 +130,56 @@ export function buildTown(kit: Kit, scene: THREE.Scene) {
     const d = b.z1 - b.z0 - paveIn * 2;
     box(w, 0.05, pave, m.sidewalk, (b.x0 + b.x1) / 2, 0, b.z0 + paveIn + pave / 2, scene, m.edgeFaint, false);
     box(w, 0.05, pave, m.sidewalk, (b.x0 + b.x1) / 2, 0, b.z1 - paveIn - pave / 2, scene, m.edgeFaint, false);
-    box(pave, 0.05, d - pave * 2, m.sidewalk, b.x0 + paveIn + pave / 2, 0, (b.z0 + b.z1) / 2, scene, m.edgeFaint, false);
-    box(pave, 0.05, d - pave * 2, m.sidewalk, b.x1 - paveIn - pave / 2, 0, (b.z0 + b.z1) / 2, scene, m.edgeFaint, false);
+    box(
+      pave,
+      0.05,
+      d - pave * 2,
+      m.sidewalk,
+      b.x0 + paveIn + pave / 2,
+      0,
+      (b.z0 + b.z1) / 2,
+      scene,
+      m.edgeFaint,
+      false,
+    );
+    box(
+      pave,
+      0.05,
+      d - pave * 2,
+      m.sidewalk,
+      b.x1 - paveIn - pave / 2,
+      0,
+      (b.z0 + b.z1) / 2,
+      scene,
+      m.edgeFaint,
+      false,
+    );
     // A lamp on each corner, except in the original neighbourhood which has its own.
     if (b.zone !== "middle" && (!lowDetail || b.zone === "west")) {
-      for (const [x, z] of [[b.x0, b.z0], [b.x1, b.z0], [b.x1, b.z1], [b.x0, b.z1]])
+      for (const [x, z] of [
+        [b.x0, b.z0],
+        [b.x1, b.z0],
+        [b.x1, b.z1],
+        [b.x0, b.z1],
+      ])
         kit.lamp(scene, x + Math.sign((b.x0 + b.x1) / 2 - x) * 2.3, z + Math.sign((b.z0 + b.z1) / 2 - z) * 2.3);
     }
   }
   // Zebra crossings where the street meets the loop, outside the school, and at downtown junctions.
   const zebra = (x: number, z: number, alongX: boolean) => {
-    for (let i = -2; i <= 2; i++) box(alongX ? 0.35 : 2.6, 0.02, alongX ? 2.6 : 0.35, m.white, x + (alongX ? i * 0.6 : 0), 0.03, z + (alongX ? 0 : i * 0.6), scene, null, false);
+    for (let i = -2; i <= 2; i++)
+      box(
+        alongX ? 0.35 : 2.6,
+        0.02,
+        alongX ? 2.6 : 0.35,
+        m.white,
+        x + (alongX ? i * 0.6 : 0),
+        0.03,
+        z + (alongX ? 0 : i * 0.6),
+        scene,
+        null,
+        false,
+      );
   };
   zebra(-LOOP.x + 3, STREET_Z, true);
   zebra(LOOP.x - 3, STREET_Z, true);
@@ -179,7 +243,15 @@ export function buildTown(kit: Kit, scene: THREE.Scene) {
       group.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(windows), m.edge));
     }
     box(1.8, 2.2, 0.1, m.black, 0, 0, d / 2 + 0.02, group, m.edgeBright, false);
-    kit.sign([{ text: name, size: 44, weight: 800 }], Math.min(w - 1, name.length * 0.62 + 1.4), 1.1, group, 0, Math.min(h - 0.9, 3.2), d / 2 + 0.04);
+    kit.sign(
+      [{ text: name, size: 44, weight: 800 }],
+      Math.min(w - 1, name.length * 0.62 + 1.4),
+      1.1,
+      group,
+      0,
+      Math.min(h - 0.9, 3.2),
+      d / 2 + 0.04,
+    );
     scene.add(group);
     const info = { name, blurb, center: new THREE.Vector3(x, h / 2, z), size: Math.max(w, d, h) };
     group.traverse((child) => (child.userData.building = info));
@@ -228,12 +300,24 @@ export function buildTown(kit: Kit, scene: THREE.Scene) {
     pad.rotation.x = -Math.PI / 2;
     pad.position.set(-26, 9.32, 44);
     scene.add(pad);
-    const padRing = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(Array.from({ length: 40 }, (_, i) => new THREE.Vector3(Math.cos((i / 40) * Math.PI * 2) * 2.4, 9.34, 44 + Math.sin((i / 40) * Math.PI * 2) * 2.4).add(new THREE.Vector3(-26, 0, 0)))), m.edgeBright);
+    const padRing = new THREE.LineLoop(
+      new THREE.BufferGeometry().setFromPoints(
+        Array.from({ length: 40 }, (_, i) =>
+          new THREE.Vector3(
+            Math.cos((i / 40) * Math.PI * 2) * 2.4,
+            9.34,
+            44 + Math.sin((i / 40) * Math.PI * 2) * 2.4,
+          ).add(new THREE.Vector3(-26, 0, 0)),
+        ),
+      ),
+      m.edgeBright,
+    );
     scene.add(padRing);
     // Fire station bay doors.
     [-4, 0, 4].forEach((dx) => box(3, 3.6, 0.1, m.black, 14 + dx, 0, 38.95, scene, m.edgeBright, false));
     // Grocery awning.
-    for (let i = 0; i < 8; i++) box(1.4, 0.1, 1.2, i % 2 ? m.white : m.black, 32 - 5.25 + i * 1.5, 3.0, 38.4, scene, null);
+    for (let i = 0; i < 8; i++)
+      box(1.4, 0.1, 1.2, i % 2 ? m.white : m.black, 32 - 5.25 + i * 1.5, 3.0, 38.4, scene, null);
     // Café umbrellas.
     [27, 33].forEach((x) => {
       kit.cylinder(0.5, 0.06, m.white, x, 0.75, -16.4, scene, 14);
@@ -248,7 +332,9 @@ export function buildTown(kit: Kit, scene: THREE.Scene) {
     // Gym dumbbell sign.
     const dumbbell = new THREE.Group();
     kit.cylinder(0.08, 1.6, m.white, 0, 0, 0, dumbbell, 8, null).rotation.z = Math.PI / 2;
-    [-0.8, 0.8].forEach((dx) => kit.cylinder(0.35, 0.3, m.white, dx, -0.15, 0, dumbbell, 14).rotation.z = Math.PI / 2);
+    [-0.8, 0.8].forEach(
+      (dx) => (kit.cylinder(0.35, 0.3, m.white, dx, -0.15, 0, dumbbell, 14).rotation.z = Math.PI / 2),
+    );
     dumbbell.position.set(52.9, 4.0, -6);
     dumbbell.rotation.y = Math.PI / 2;
     scene.add(dumbbell);
@@ -263,8 +349,34 @@ export function buildTown(kit: Kit, scene: THREE.Scene) {
   pond.scale.set(1.3, 1, 1);
   pond.position.set(0, 0.07, -4);
   park.add(pond);
-  park.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(Array.from({ length: 48 }, (_, i) => new THREE.Vector3(Math.cos((i / 48) * Math.PI * 2) * 5.85, 0.08, -4 + Math.sin((i / 48) * Math.PI * 2) * 4.5))), m.edgeBright));
-  park.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(Array.from({ length: 64 }, (_, i) => new THREE.Vector3(Math.cos((i / 64) * Math.PI * 2) * 8.5, 0.07, 2 + Math.sin((i / 64) * Math.PI * 2) * 14))), new THREE.LineBasicMaterial({ color: 0x55555c })));
+  park.add(
+    new THREE.LineLoop(
+      new THREE.BufferGeometry().setFromPoints(
+        Array.from(
+          { length: 48 },
+          (_, i) =>
+            new THREE.Vector3(
+              Math.cos((i / 48) * Math.PI * 2) * 5.85,
+              0.08,
+              -4 + Math.sin((i / 48) * Math.PI * 2) * 4.5,
+            ),
+        ),
+      ),
+      m.edgeBright,
+    ),
+  );
+  park.add(
+    new THREE.LineLoop(
+      new THREE.BufferGeometry().setFromPoints(
+        Array.from(
+          { length: 64 },
+          (_, i) =>
+            new THREE.Vector3(Math.cos((i / 64) * Math.PI * 2) * 8.5, 0.07, 2 + Math.sin((i / 64) * Math.PI * 2) * 14),
+        ),
+      ),
+      new THREE.LineBasicMaterial({ color: 0x55555c }),
+    ),
+  );
   const parkTrees = lowDetail ? 8 : 18;
   for (let i = 0; i < parkTrees; i++) {
     const a = (i / parkTrees) * Math.PI * 2;
@@ -274,7 +386,12 @@ export function buildTown(kit: Kit, scene: THREE.Scene) {
   kit.bench(park, -6.5, 8, Math.PI / 2);
   kit.sign([{ text: "PARK", size: 44, weight: 800 }], 3, 1.1, park, 9, 1.3, -18, Math.PI / 2);
   scene.add(park);
-  const parkInfo = { name: "PARK", blurb: "Fresh air, free of charge. Rocky walks here. Nobody else does.", center: new THREE.Vector3(-62, 1, 10), size: 30 };
+  const parkInfo = {
+    name: "PARK",
+    blurb: "Fresh air, free of charge. Rocky walks here. Nobody else does.",
+    center: new THREE.Vector3(-62, 1, 10),
+    size: 30,
+  };
   park.traverse((child) => (child.userData.building = parkInfo));
   buildings.push({ mesh: park, info: parkInfo });
 
@@ -316,20 +433,76 @@ export function buildTown(kit: Kit, scene: THREE.Scene) {
       const count = Math.floor(length / 1.6);
       for (let k = 1; k < count; k++) {
         const f = k / count;
-        skyline.push(new THREE.Vector3(ax + (bx - ax) * f, 2.6, az + (bz - az) * f), new THREE.Vector3(ax + (bx - ax) * f, h - 0.6, az + (bz - az) * f));
+        skyline.push(
+          new THREE.Vector3(ax + (bx - ax) * f, 2.6, az + (bz - az) * f),
+          new THREE.Vector3(ax + (bx - ax) * f, h - 0.6, az + (bz - az) * f),
+        );
       }
     }
   };
 
   // Landmarks, each in its own block and facing the road on the block's south side.
-  type Landmark = { block: [number, number]; name: string; blurb: string; w: number; d: number; h: number; floors?: number; dark?: boolean; dx?: number };
+  type Landmark = {
+    block: [number, number];
+    name: string;
+    blurb: string;
+    w: number;
+    d: number;
+    h: number;
+    floors?: number;
+    dark?: boolean;
+    dx?: number;
+  };
   const LANDMARKS: Landmark[] = [
-    { block: [72, OUTER.north], name: "CITY HALL", blurb: "Rules for the city. Rocky keeps his own.", w: 14, d: 9, h: 8, floors: 2 },
-    { block: [112, OUTER.north], name: "BANK", blurb: "Compound interest works on habits too.", w: 12, d: 10, h: 16, floors: 5, dark: true },
+    {
+      block: [72, OUTER.north],
+      name: "CITY HALL",
+      blurb: "Rules for the city. Rocky keeps his own.",
+      w: 14,
+      d: 9,
+      h: 8,
+      floors: 2,
+    },
+    {
+      block: [112, OUTER.north],
+      name: "BANK",
+      blurb: "Compound interest works on habits too.",
+      w: 12,
+      d: 10,
+      h: 16,
+      floors: 5,
+      dark: true,
+    },
     { block: [LOOP.x, 2], name: "MALL", blurb: "Lebowski’s favourite cardio.", w: 20, d: 9, h: 7, floors: 2 },
-    { block: [92, 2], name: "SKYLINE TOWER", blurb: "Fifty floors, one step at a time.", w: 8, d: 8, h: 46, floors: 16, dark: true },
-    { block: [112, 18], name: "HOTEL", blurb: "Room service at 2 AM. Ferris has the number.", w: 12, d: 9, h: 26, floors: 9 },
-    { block: [72, LOOP.south], name: "CINEMA", blurb: "Gollum watches the trailers on his phone.", w: 14, d: 10, h: 8, floors: 2, dark: true },
+    {
+      block: [92, 2],
+      name: "SKYLINE TOWER",
+      blurb: "Fifty floors, one step at a time.",
+      w: 8,
+      d: 8,
+      h: 46,
+      floors: 16,
+      dark: true,
+    },
+    {
+      block: [112, 18],
+      name: "HOTEL",
+      blurb: "Room service at 2 AM. Ferris has the number.",
+      w: 12,
+      d: 9,
+      h: 26,
+      floors: 9,
+    },
+    {
+      block: [72, LOOP.south],
+      name: "CINEMA",
+      blurb: "Gollum watches the trailers on his phone.",
+      w: 14,
+      d: 10,
+      h: 8,
+      floors: 2,
+      dark: true,
+    },
   ];
   const reserved: { x0: number; z0: number; x1: number; z1: number }[] = [{ x0: 52, z0: -11, x1: 64, z1: -1 }]; // the gym
   for (const lm of LANDMARKS) {
@@ -340,8 +513,18 @@ export function buildTown(kit: Kit, scene: THREE.Scene) {
     reserved.push({ x0: x - lm.w / 2 - 0.8, x1: x + lm.w / 2 + 0.8, z0: z - lm.d / 2 - 0.8, z1: z + lm.d / 2 + 0.8 });
     if (lm.name === "SKYLINE TOWER") kit.cylinder(0.12, 7, m.white, x, lm.h + 0.3, z, scene, 8);
     if (lm.name === "CITY HALL" && !lowDetail)
-      for (let i = -3; i <= 3; i++) if (i !== 0) kit.cylinder(0.3, 6, m.white, x + i * 1.9, 0, z + lm.d / 2 + 0.45, scene, 14);
-    if (lm.name === "CINEMA") kit.sign([{ text: "NOW SHOWING · TOMORROW", size: 30, weight: 800, mono: true }], 9, 0.9, scene, x, 6.2, z + lm.d / 2 + 0.06);
+      for (let i = -3; i <= 3; i++)
+        if (i !== 0) kit.cylinder(0.3, 6, m.white, x + i * 1.9, 0, z + lm.d / 2 + 0.45, scene, 14);
+    if (lm.name === "CINEMA")
+      kit.sign(
+        [{ text: "NOW SHOWING · TOMORROW", size: 30, weight: 800, mono: true }],
+        9,
+        0.9,
+        scene,
+        x,
+        6.2,
+        z + lm.d / 2 + 0.06,
+      );
   }
   // Fill every other downtown lot with a tower; the odd empty lot becomes a little plaza with a tree.
   const centre = new THREE.Vector2(102, 10);
@@ -358,7 +541,9 @@ export function buildTown(kit: Kit, scene: THREE.Scene) {
         const lz = iz0 + (D / nz) * (j + 0.5);
         const lw = W / nx - 1.4 - rand() * 1.2;
         const ld = D / nz - 1.4 - rand() * 1.2;
-        const hit = reserved.some((r) => lx + lw / 2 > r.x0 && lx - lw / 2 < r.x1 && lz + ld / 2 > r.z0 && lz - ld / 2 < r.z1);
+        const hit = reserved.some(
+          (r) => lx + lw / 2 > r.x0 && lx - lw / 2 < r.x1 && lz + ld / 2 > r.z0 && lz - ld / 2 < r.z1,
+        );
         if (hit) continue;
         if (rand() < 0.12) {
           kit.roundTree(scene, lx, lz, 1.1);
@@ -397,7 +582,12 @@ export function buildTown(kit: Kit, scene: THREE.Scene) {
   }
   kit.sign([{ text: "MAPLE ROW", size: 44, weight: 800 }], 4, 1.1, suburb, -64, 1.2, LOOP.north - 2.6);
   scene.add(suburb);
-  const suburbInfo = { name: "MAPLE ROW", blurb: "Ten more houses, ten more routines. Most of them start on Monday.", center: new THREE.Vector3(-64, 1, -27), size: 22 };
+  const suburbInfo = {
+    name: "MAPLE ROW",
+    blurb: "Ten more houses, ten more routines. Most of them start on Monday.",
+    center: new THREE.Vector3(-64, 1, -27),
+    size: 22,
+  };
   suburb.traverse((child) => (child.userData.building = suburbInfo));
   buildings.push({ mesh: suburb, info: suburbInfo });
 
@@ -405,9 +595,22 @@ export function buildTown(kit: Kit, scene: THREE.Scene) {
   stadium.position.set(-64, 0, (LOOP.south + OUTER.south) / 2);
   box(16, 0.06, 9, m.lawn, 0, 0, 0, stadium, m.edgeBright, false);
   const ellipse = (rx: number, rz: number, y: number) =>
-    new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(Array.from({ length: 64 }, (_, i) => new THREE.Vector3(Math.cos((i / 64) * Math.PI * 2) * rx, y, Math.sin((i / 64) * Math.PI * 2) * rz))), m.edgeBright);
+    new THREE.LineLoop(
+      new THREE.BufferGeometry().setFromPoints(
+        Array.from(
+          { length: 64 },
+          (_, i) => new THREE.Vector3(Math.cos((i / 64) * Math.PI * 2) * rx, y, Math.sin((i / 64) * Math.PI * 2) * rz),
+        ),
+      ),
+      m.edgeBright,
+    );
   stadium.add(ellipse(12.4, 7.2, 0.08), ellipse(13.2, 7.9, 0.08), ellipse(1.6, 1.6, 0.08));
-  stadium.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.08, -4.5), new THREE.Vector3(0, 0.08, 4.5)]), m.edgeBright));
+  stadium.add(
+    new THREE.LineSegments(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.08, -4.5), new THREE.Vector3(0, 0.08, 4.5)]),
+      m.edgeBright,
+    ),
+  );
   [-1, 1].forEach((side) => {
     box(24, 0.8, 1.4, m.building, 0, 0, side * 8.8, stadium, m.edge);
     box(24, 1.6, 1.2, m.dark, 0, 0, side * 9.9, stadium, m.edge);
@@ -422,7 +625,12 @@ export function buildTown(kit: Kit, scene: THREE.Scene) {
   });
   kit.sign([{ text: "STADIUM", size: 44, weight: 800 }], 3.6, 1.1, stadium, 0, 2.3, 10.55);
   scene.add(stadium);
-  const stadiumInfo = { name: "STADIUM", blurb: "Champions are made in the mornings nobody watches.", center: stadium.position.clone().setY(2), size: 26 };
+  const stadiumInfo = {
+    name: "STADIUM",
+    blurb: "Champions are made in the mornings nobody watches.",
+    center: stadium.position.clone().setY(2),
+    size: 26,
+  };
   stadium.traverse((child) => (child.userData.building = stadiumInfo));
   buildings.push({ mesh: stadium, info: stadiumInfo });
 
@@ -467,7 +675,12 @@ export function buildTown(kit: Kit, scene: THREE.Scene) {
   ]);
   const ringCount = lowDetail ? 3 : 7;
   for (let k = 0; k < ringCount; k++)
-    traffic.push({ v: kit.vehicle(k === 2 ? "police" : k === 5 ? "bus" : "car", scene), route: ring, distance: (ring.total * k) / ringCount, speed: 8.5 });
+    traffic.push({
+      v: kit.vehicle(k === 2 ? "police" : k === 5 ? "bus" : "car", scene),
+      route: ring,
+      distance: (ring.total * k) / ringCount,
+      speed: 8.5,
+    });
   const flashing = [...traffic.map((c) => c.v), ambulance, engine].filter((v) => v.beacon.length);
 
   // Rocky's stop is on the street leg of the bus loop, at x = BUS_STOP_X.
@@ -476,11 +689,23 @@ export function buildTown(kit: Kit, scene: THREE.Scene) {
   let busWait = 0;
 
   // ---------- Pedestrians ----------
-  const reverse = (r: Route) => route(r.points.slice().reverse().map((p) => [p.x, p.z] as [number, number]));
+  const reverse = (r: Route) =>
+    route(
+      r.points
+        .slice()
+        .reverse()
+        .map((p) => [p.x, p.z] as [number, number]),
+    );
   const southStreet = BLOCKS.find((b) => b.zone === "middle" && b.z0 === STREET_Z)!;
   const walkBlocks = [southStreet, ...BLOCKS.filter((b) => b.zone === "east"), BLOCKS[0], BLOCKS[2]];
   const paths: Route[] = [];
-  const parkPath = route(Array.from({ length: 40 }, (_, i) => [-62 + Math.cos((i / 40) * Math.PI * 2) * 8.5, 12 + Math.sin((i / 40) * Math.PI * 2) * 14] as [number, number]));
+  const parkPath = route(
+    Array.from(
+      { length: 40 },
+      (_, i) =>
+        [-62 + Math.cos((i / 40) * Math.PI * 2) * 8.5, 12 + Math.sin((i / 40) * Math.PI * 2) * 14] as [number, number],
+    ),
+  );
   walkBlocks.forEach((b, i) => {
     const loop = blockLoop(b.x0, b.z0, b.x1, b.z1, 1.9);
     paths.push(i % 2 ? reverse(loop) : loop);

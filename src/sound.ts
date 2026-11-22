@@ -23,7 +23,8 @@ function unlock() {
     if (ctx.state === "suspended") void ctx.resume();
     return;
   }
-  const Context = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  const Context =
+    window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!Context) return;
   ctx = new Context();
   const compressor = ctx.createDynamicsCompressor();
@@ -68,7 +69,10 @@ type ToneOptions = {
   delay?: number;
   slideTo?: number;
 };
-function tone(frequency: number, { type = "sine", gain = 0.2, attack = 0.005, decay = 0.4, delay = 0, slideTo }: ToneOptions = {}) {
+function tone(
+  frequency: number,
+  { type = "sine", gain = 0.2, attack = 0.005, decay = 0.4, delay = 0, slideTo }: ToneOptions = {},
+) {
   const audio = ready();
   if (!audio) return;
   const { ctx, out } = audio;
@@ -88,7 +92,10 @@ function tone(frequency: number, { type = "sine", gain = 0.2, attack = 0.005, de
 }
 
 let noiseBuffer: AudioBuffer | null = null;
-function noise(duration: number, { filter = "lowpass" as BiquadFilterType, from = 400, to = 400, gain = 0.2, q = 0.8, delay = 0 } = {}) {
+function noise(
+  duration: number,
+  { filter = "lowpass" as BiquadFilterType, from = 400, to = 400, gain = 0.2, q = 0.8, delay = 0 } = {},
+) {
   const audio = ready();
   if (!audio) return;
   const { ctx, out } = audio;
@@ -132,7 +139,14 @@ export const sfx = {
     for (let k = 0; k < clicks; k++) {
       // Accelerating spacing: early clicks are slow, the last ones bunch up.
       const at = duration * (1 - Math.pow(1 - k / clicks, 1.7));
-      const click = noise(0.025, { filter: "bandpass", from: 3200 + k * 160, to: 2600 + k * 160, gain: 0.05 + k * 0.006, q: 6, delay: at });
+      const click = noise(0.025, {
+        filter: "bandpass",
+        from: 3200 + k * 160,
+        to: 2600 + k * 160,
+        gain: 0.05 + k * 0.006,
+        q: 6,
+        delay: at,
+      });
       const body = tone(900 + k * 70, { type: "sine", gain: 0.025 + k * 0.004, attack: 0.002, decay: 0.03, delay: at });
       if (click) holdVoices.push(click);
       if (body) holdVoices.push(body);

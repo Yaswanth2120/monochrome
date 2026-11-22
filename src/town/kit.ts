@@ -46,7 +46,17 @@ export function createKit(lowDetail: boolean) {
     parent.add(mesh);
     return mesh;
   }
-  function cylinder(r: number, h: number, material: THREE.Material, x: number, y: number, z: number, parent: THREE.Object3D, segments = 20, lines: THREE.LineBasicMaterial | null = m.edge) {
+  function cylinder(
+    r: number,
+    h: number,
+    material: THREE.Material,
+    x: number,
+    y: number,
+    z: number,
+    parent: THREE.Object3D,
+    segments = 20,
+    lines: THREE.LineBasicMaterial | null = m.edge,
+  ) {
     const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, segments), material);
     mesh.position.set(x, y + h / 2, z);
     mesh.castShadow = true;
@@ -94,7 +104,17 @@ export function createKit(lowDetail: boolean) {
   }
 
   /** A flat sign facing +z in its parent's space. */
-  function sign(lines: Parameters<typeof textTexture>[0], w: number, h: number, parent: THREE.Object3D, x: number, y: number, z: number, rotY = 0, options?: Parameters<typeof textTexture>[3]) {
+  function sign(
+    lines: Parameters<typeof textTexture>[0],
+    w: number,
+    h: number,
+    parent: THREE.Object3D,
+    x: number,
+    y: number,
+    z: number,
+    rotY = 0,
+    options?: Parameters<typeof textTexture>[3],
+  ) {
     const texture = textTexture(lines, Math.round(w * 128), Math.round(h * 128), options);
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: texture }));
     mesh.position.set(x, y, z);
@@ -162,13 +182,45 @@ export function createKit(lowDetail: boolean) {
     if (big) {
       box(width, 1.45, length, bodyMaterial, 0, 0.25, 0, group, lines);
       for (let w = -1.5; w <= 1.5; w += 0.6) {
-        box(0.02, 0.4, 0.45, bodyMaterial === m.black ? m.white : m.black, width / 2 + 0.01, 0.95, w, group, null, false);
-        box(0.02, 0.4, 0.45, bodyMaterial === m.black ? m.white : m.black, -width / 2 - 0.01, 0.95, w, group, null, false);
+        box(
+          0.02,
+          0.4,
+          0.45,
+          bodyMaterial === m.black ? m.white : m.black,
+          width / 2 + 0.01,
+          0.95,
+          w,
+          group,
+          null,
+          false,
+        );
+        box(
+          0.02,
+          0.4,
+          0.45,
+          bodyMaterial === m.black ? m.white : m.black,
+          -width / 2 - 0.01,
+          0.95,
+          w,
+          group,
+          null,
+          false,
+        );
       }
       if (kind === "firetruck") box(0.5, 0.15, length * 0.8, m.grey, 0, 1.7, -0.2, group);
     } else {
       box(width, 0.5, length, bodyMaterial, 0, 0.2, 0, group, lines);
-      box(width * 0.86, 0.42, length * (kind === "ambulance" ? 0.7 : 0.5), kind === "ambulance" ? m.white : m.black, 0, 0.7, kind === "ambulance" ? -0.25 : -0.1, group, lines);
+      box(
+        width * 0.86,
+        0.42,
+        length * (kind === "ambulance" ? 0.7 : 0.5),
+        kind === "ambulance" ? m.white : m.black,
+        0,
+        0.7,
+        kind === "ambulance" ? -0.25 : -0.1,
+        group,
+        lines,
+      );
     }
     [-1, 1].forEach((side) =>
       [-1, 1].forEach((end) => {

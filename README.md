@@ -10,14 +10,14 @@ MonoChrome is a 3D habit tracker built to keep a daily routine honest. You don't
 
 The site opens on a lock screen that is also a small 3D city. **Rocky**, the disciplined one, lives in the middle of it and works through the whole routine every day while his checklist fills up to 13/13. His five neighbours live the same day badly:
 
-| House sign | Resident | How they spend the day |
-|---|---|---|
-| DISCIPLINED · LVL 10 | Rocky | Does every task in order, catches the bus, lights out on time |
-| PROCRASTINATOR · LVL 3 | Ferris | Walks up to a task, turns back to the sofa, panics at night |
-| DISTRACTED · LVL 2 | Gollum | Starts something, then the phone buzzes |
-| LAZY · LVL 1 | Lebowski | Snooze, fridge, couch, bed |
-| SCATTERED · LVL 4 | Flash | Starts everything at triple speed and finishes nothing |
-| PERFECTIONIST · LVL 5 | Nina | Ticks a box, decides it wasn't perfect, unticks it |
+| House sign             | Resident | How they spend the day                                        |
+| ---------------------- | -------- | ------------------------------------------------------------- |
+| DISCIPLINED · LVL 10   | Rocky    | Does every task in order, catches the bus, lights out on time |
+| PROCRASTINATOR · LVL 3 | Ferris   | Walks up to a task, turns back to the sofa, panics at night   |
+| DISTRACTED · LVL 2     | Gollum   | Starts something, then the phone buzzes                       |
+| LAZY · LVL 1           | Lebowski | Snooze, fridge, couch, bed                                    |
+| SCATTERED · LVL 4      | Flash    | Starts everything at triple speed and finishes nothing        |
+| PERFECTIONIST · LVL 5  | Nina     | Ticks a box, decides it wasn't perfect, unticks it            |
 
 Around them is a full city. It has a school, a library, an office tower, a café, a hospital, police and fire stations, a grocery, a gym and a park. Downtown has City Hall, a Bank, a Mall, a Cinema, a Hotel and the Skyline Tower, and the west side has the Maple Row suburb and a stadium. About 50 vehicles drive the roads, including buses, police cars and ambulances with blinking lights, and pedestrians walk the pavements.
 

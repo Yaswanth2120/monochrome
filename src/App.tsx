@@ -75,7 +75,15 @@ function Check({ size = 16 }: { size?: number }) {
 }
 function Close() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden="true"
+    >
       <path d="m6 6 12 12M6 18 18 6" />
     </svg>
   );
@@ -147,7 +155,11 @@ export default function App() {
     else sfx.commit();
     if (dayComplete(next) && !dayComplete(previous)) {
       const days = streak({ ...history, [today]: { ...next, complete: true } }, today);
-      show({ label: "DAY SEALED", message: `Every promise kept. Streak: ${days} ${days === 1 ? "day" : "days"}.`, tone: "win" });
+      show({
+        label: "DAY SEALED",
+        message: `Every promise kept. Streak: ${days} ${days === 1 ? "day" : "days"}.`,
+        tone: "win",
+      });
     } else {
       show({
         label: optional ? "BONUS" : index === null ? "VOW SEALED" : "COMMITTED",
@@ -166,14 +178,17 @@ export default function App() {
 
   /** Why something can't be committed right now, if it can't. */
   function blocker(index: number) {
-    if (index > unlocked) return `Finish “${TASKS[unlocked].title.replace(/\.$/, "")}” first. The bridge isn’t built yet.`;
+    if (index > unlocked)
+      return `Finish “${TASKS[unlocked].title.replace(/\.$/, "")}” first. The bridge isn’t built yet.`;
     const item = TASKS[index];
     const when = timing(item, minutes);
-    if (when === "early" && item.opensAt !== undefined) return `${item.title.replace(/\.$/, "")} opens at ${formatMinutes(item.opensAt)}.`;
+    if (when === "early" && item.opensAt !== undefined)
+      return `${item.title.replace(/\.$/, "")} opens at ${formatMinutes(item.opensAt)}.`;
     if (when === "missed") return "Lights out was 11 PM. Tonight is gone; tomorrow, earlier.";
     return null;
   }
-  const blockerLabel = (index: number) => (timing(TASKS[index], minutes) === "missed" ? "MISSED" : index > unlocked ? "ONE THING AT A TIME" : "NOT YET");
+  const blockerLabel = (index: number) =>
+    timing(TASKS[index], minutes) === "missed" ? "MISSED" : index > unlocked ? "ONE THING AT A TIME" : "NOT YET";
 
   function commit(index: number) {
     const item = TASKS[index];
@@ -200,7 +215,11 @@ export default function App() {
     const finished = nextParts.length === (item.parts?.length ?? 0);
     if (!ticked.includes(part) && !finished) sfx.pluck(nextParts.length);
     const done = record.done.filter((id) => id !== item.id);
-    const next = save({ ...record, parts: { ...record.parts, [item.id]: nextParts }, done: finished ? [...done, item.id] : done });
+    const next = save({
+      ...record,
+      parts: { ...record.parts, [item.id]: nextParts },
+      done: finished ? [...done, item.id] : done,
+    });
     if (finished && !isDone(record, item.id)) celebrate(record, next, index);
   }
   function changeCount(index: number, delta: number) {
@@ -211,10 +230,18 @@ export default function App() {
     const reached = value >= (item.target ?? 1);
     if (delta > 0 && !(reached && !isDone(record, item.id))) sfx.pluck(value);
     const done = record.done.filter((id) => id !== item.id);
-    const next = save({ ...record, counts: { ...record.counts, [item.id]: value }, done: reached ? [...done, item.id] : done });
+    const next = save({
+      ...record,
+      counts: { ...record.counts, [item.id]: value },
+      done: reached ? [...done, item.id] : done,
+    });
     if (reached && !isDone(record, item.id)) {
       celebrate(record, next, index);
-      show({ label: "LINE CROSSED", message: `${value} sent. Everything past ${item.target} is the stretch. Stay, or walk on →`, tone: "win" });
+      show({
+        label: "LINE CROSSED",
+        message: `${value} sent. Everything past ${item.target} is the stretch. Stay, or walk on →`,
+        tone: "win",
+      });
     } else if (delta > 0 && value === item.max) {
       show({ label: "STRETCH HIT", message: `${value} applications. Relentless.`, tone: "win" });
       setCurrent(Math.min(LAST, index + 1));
@@ -231,7 +258,10 @@ export default function App() {
     if (record.slipped.includes(vow.id))
       return nudge("You logged a slip today. Honest counts. Tomorrow starts clean.", "NOT TODAY");
     if (timing(vow, minutes) === "early")
-      return nudge(`Vows are sealed at night, from ${formatMinutes(vow.opensAt)}. Hold the line until then.`, "NOT YET");
+      return nudge(
+        `Vows are sealed at night, from ${formatMinutes(vow.opensAt)}. Hold the line until then.`,
+        "NOT YET",
+      );
     const next = save({ ...record, done: [...record.done, vow.id] });
     celebrate(record, next, null);
   }
@@ -242,7 +272,11 @@ export default function App() {
     }
     save({ ...record, slipped: [...record.slipped, vow.id], done: record.done.filter((id) => id !== vow.id) });
     sfx.slip();
-    show({ label: "LOGGED, HONESTLY", message: "The streak resets. The work doesn’t. Finish the rest of today anyway.", tone: "slip" });
+    show({
+      label: "LOGGED, HONESTLY",
+      message: "The streak resets. The work doesn’t. Finish the rest of today anyway.",
+      tone: "slip",
+    });
   }
 
   // ---------- Hold to commit ----------
@@ -553,7 +587,9 @@ export default function App() {
       </aside>
       {toast && (
         <div className={`achievement-toast ${toast.tone}`} key={toastKey} role="status">
-          <span className="achievement-icon">{toast.tone === "win" ? <Check size={12} /> : toast.tone === "slip" ? "·" : "1"}</span>
+          <span className="achievement-icon">
+            {toast.tone === "win" ? <Check size={12} /> : toast.tone === "slip" ? "·" : "1"}
+          </span>
           <span>
             <small>{toast.label}</small>
             {toast.message}
@@ -602,7 +638,11 @@ export default function App() {
                   {value}
                   <small>/{task.target}</small>
                 </span>
-                <button aria-label="One more application" onClick={() => changeCount(current, 1)} disabled={value >= (task.max ?? 99)}>
+                <button
+                  aria-label="One more application"
+                  onClick={() => changeCount(current, 1)}
+                  disabled={value >= (task.max ?? 99)}
+                >
                   +
                 </button>
                 <div className="count-track" aria-hidden="true">
@@ -667,7 +707,15 @@ export default function App() {
                   </button>
                   <span>
                     {vow.label}
-                    <small>{slipped ? "Slipped" : kept ? "Kept" : early ? `Holding · seal after ${formatMinutes(vow.opensAt)}` : "Holding · seal it now"}</small>
+                    <small>
+                      {slipped
+                        ? "Slipped"
+                        : kept
+                          ? "Kept"
+                          : early
+                            ? `Holding · seal after ${formatMinutes(vow.opensAt)}`
+                            : "Holding · seal it now"}
+                    </small>
                   </span>
                   {!kept && (
                     <button className="task-slip" onClick={() => toggleSlip(vow)}>
@@ -734,7 +782,17 @@ export default function App() {
             title={muted ? "Sound off (M)" : "Sound on (M)"}
             onClick={() => setMuted(!muted)}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
               <path d="M4 9v6h4l5 4V5L8 9H4z" />
               {muted ? <path d="m17 9 5 6m0-6-5 6" /> : <path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" />}
             </svg>
@@ -761,7 +819,15 @@ export default function App() {
             aria-pressed={focus}
             onClick={() => setFocus(!focus)}
           >
-            <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              aria-hidden="true"
+            >
               <path d={focus ? "M2 7h5V2m6 0v5h5M2 13h5v5m6 0v-5h5" : "M7 2H2v5m11-5h5v5M2 13v5h5m11-5v5h-5"} />
             </svg>
           </button>
@@ -780,7 +846,9 @@ export default function App() {
             <button className="panel-close" aria-label="Close" onClick={() => setPanel(null)}>
               <Close />
             </button>
-            <span className="panel-eyebrow">{panel === "today" ? "ONE ISLAND AT A TIME. NO SHORTCUTS." : "HOW THE RING WORKS"}</span>
+            <span className="panel-eyebrow">
+              {panel === "today" ? "ONE ISLAND AT A TIME. NO SHORTCUTS." : "HOW THE RING WORKS"}
+            </span>
             <h2 id="panel-title">{panel === "today" ? "Today, honestly." : "Discipline, made visible."}</h2>
             <p>
               {panel === "today"
@@ -793,7 +861,10 @@ export default function App() {
                   {TASKS.map((item, i) => {
                     const itemDone = isDone(record, item.id);
                     return (
-                      <div key={item.id} className={`panel-quest ${itemDone ? "done" : ""} ${i > unlocked ? "locked" : ""}`}>
+                      <div
+                        key={item.id}
+                        className={`panel-quest ${itemDone ? "done" : ""} ${i > unlocked ? "locked" : ""}`}
+                      >
                         <button
                           disabled={i > unlocked && i > current}
                           onClick={() => {
@@ -842,7 +913,10 @@ export default function App() {
                   </span>
                   <div>
                     <strong>Hold to commit</strong>
-                    <p>Do it in real life first. Then hold E, or the button, until it fills. A promise deserves more than a click.</p>
+                    <p>
+                      Do it in real life first. Then hold E, or the button, until it fills. A promise deserves more than
+                      a click.
+                    </p>
                   </div>
                 </div>
                 <div className="help-row">
@@ -853,8 +927,9 @@ export default function App() {
                   <div>
                     <strong>Walk and look around</strong>
                     <p>
-                      Arrow keys, A/D, swipe, or click an island to walk. Scroll, pinch or +/− to zoom from right next to
-                      the figure out to the whole system. Drag to orbit. 0 resets the camera, H hides the task panel, M mutes sound, L locks the screen.
+                      Arrow keys, A/D, swipe, or click an island to walk. Scroll, pinch or +/− to zoom from right next
+                      to the figure out to the whole system. Drag to orbit. 0 resets the camera, H hides the task panel,
+                      M mutes sound, L locks the screen.
                     </p>
                   </div>
                 </div>
@@ -863,8 +938,8 @@ export default function App() {
                   <div>
                     <strong>Earn the next island</strong>
                     <p>
-                      Each task pushes its stone home and raises the bridge to the next. Bonus islands can be walked past, but
-                      doing them shines brighter. No skipping ahead.
+                      Each task pushes its stone home and raises the bridge to the next. Bonus islands can be walked
+                      past, but doing them shines brighter. No skipping ahead.
                     </p>
                   </div>
                 </div>
@@ -873,8 +948,8 @@ export default function App() {
                   <div>
                     <strong>Vows and lights out</strong>
                     <p>
-                      No porn and no alcohol are held all day and sealed after 8 PM. Slips are logged honestly. Lights out can
-                      only be sealed between 8:30 and 11 PM.
+                      No porn and no alcohol are held all day and sealed after 8 PM. Slips are logged honestly. Lights
+                      out can only be sealed between 8:30 and 11 PM.
                     </p>
                   </div>
                 </div>
@@ -882,7 +957,10 @@ export default function App() {
                   <span className="help-keys">◉</span>
                   <div>
                     <strong>Light the core</strong>
-                    <p>Every task sends a spoke of light to the core. Finish them all, keep both vows, and it ignites. That’s a perfect day, and it adds to your streak.</p>
+                    <p>
+                      Every task sends a spoke of light to the core. Finish them all, keep both vows, and it ignites.
+                      That’s a perfect day, and it adds to your streak.
+                    </p>
                   </div>
                 </div>
                 <button
@@ -896,7 +974,9 @@ export default function App() {
                 </button>
               </>
             )}
-            <span className="session-note">Every day is saved on this device and turns over at 4 AM. Press C, or the streak, for your calendar.</span>
+            <span className="session-note">
+              Every day is saved on this device and turns over at 4 AM. Press C, or the streak, for your calendar.
+            </span>
           </section>
         </div>
       )}

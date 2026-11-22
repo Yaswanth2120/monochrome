@@ -43,9 +43,22 @@ export type Step = {
   reset?: boolean;
 };
 
-export type ResidentDef = { tell: Tell; name: string; title: string; level: number; tone: "white" | "grey"; script: Step[] };
+export type ResidentDef = {
+  tell: Tell;
+  name: string;
+  title: string;
+  level: number;
+  tone: "white" | "grey";
+  script: Step[];
+};
 
-const s = (at: string, pose: ActionPose, duration: number, caption: string, extra: Partial<Step> = {}): Step => ({ at, pose, duration, caption, ...extra });
+const s = (at: string, pose: ActionPose, duration: number, caption: string, extra: Partial<Step> = {}): Step => ({
+  at,
+  pose,
+  duration,
+  caption,
+  ...extra,
+});
 
 export const RESIDENTS: ResidentDef[] = [
   {
@@ -163,14 +176,46 @@ export const RESIDENTS: ResidentDef[] = [
 export function actionPose(action: ActionPose, t: number): Pose {
   const p = idlePose(t);
   const sin = Math.sin;
-  const sitting: Pose = { ...p, pelvisY: 0.42, spine: -0.3, head: 0.05, hipL: -1.45, hipR: -1.45, liftL: 0, liftR: 0, shL: -0.3, elL: -0.6, zL: -0.35, shR: -0.3, elR: -0.6, zR: 0.35 };
+  const sitting: Pose = {
+    ...p,
+    pelvisY: 0.42,
+    spine: -0.3,
+    head: 0.05,
+    hipL: -1.45,
+    hipR: -1.45,
+    liftL: 0,
+    liftR: 0,
+    shL: -0.3,
+    elL: -0.6,
+    zL: -0.35,
+    shR: -0.3,
+    elR: -0.6,
+    zR: 0.35,
+  };
   switch (action) {
     case "brush":
       return { ...p, shR: -2.05, elR: -2.05, zR: 0.28 + sin(t * 15) * 0.12, head: -0.08 };
     case "cook":
-      return { ...p, spine: 0.15, shR: -1.0 + sin(t * 4) * 0.15, elR: -0.9, zR: 0.12 + Math.cos(t * 4) * 0.28, shL: -0.7, elL: -1.2, zL: -0.05 };
+      return {
+        ...p,
+        spine: 0.15,
+        shR: -1.0 + sin(t * 4) * 0.15,
+        elR: -0.9,
+        zR: 0.12 + Math.cos(t * 4) * 0.28,
+        shL: -0.7,
+        elL: -1.2,
+        zL: -0.05,
+      };
     case "bath":
-      return { ...p, shL: -1.6 + sin(t * 6) * 0.45, elL: -1.6, zL: 0.35, shR: -1.6 + Math.cos(t * 6) * 0.45, elR: -1.6, zR: -0.35 };
+      return {
+        ...p,
+        shL: -1.6 + sin(t * 6) * 0.45,
+        elL: -1.6,
+        zL: 0.35,
+        shR: -1.6 + Math.cos(t * 6) * 0.45,
+        elR: -1.6,
+        zR: -0.35,
+      };
     case "eat": {
       const k = (sin(t * 2.2) + 1) / 2;
       return { ...p, shR: -0.6 - k * 1.55, elR: -0.5 - k * 1.6, zR: 0.1, shL: -0.5, elL: -1.0 };
@@ -178,11 +223,38 @@ export function actionPose(action: ActionPose, t: number): Pose {
     case "wait":
       return { ...p, shL: -1.25, elL: -1.55, zL: 0.35, head: 0.28 + sin(t * 0.8) * 0.05, shR: -0.05, elR: -0.25 };
     case "type":
-      return { ...p, spine: 0.22, head: 0.18, shL: -1.05 + sin(t * 12) * 0.06, shR: -1.05 + Math.cos(t * 13) * 0.06, elL: -0.55, elR: -0.55, zL: 0.12, zR: -0.12 };
+      return {
+        ...p,
+        spine: 0.22,
+        head: 0.18,
+        shL: -1.05 + sin(t * 12) * 0.06,
+        shR: -1.05 + Math.cos(t * 13) * 0.06,
+        elL: -0.55,
+        elR: -0.55,
+        zL: 0.12,
+        zR: -0.12,
+      };
     case "mail":
-      return { ...p, spine: 0.08, shR: -1.45 + sin(t * 3.1) * 0.12, elR: -0.25 + sin(t * 3.1) * 0.3, zR: 0.05, shL: -0.2, elL: -0.4 };
+      return {
+        ...p,
+        spine: 0.08,
+        shR: -1.45 + sin(t * 3.1) * 0.12,
+        elR: -0.25 + sin(t * 3.1) * 0.3,
+        zR: 0.05,
+        shL: -0.2,
+        elL: -0.4,
+      };
     case "dishes":
-      return { ...p, spine: 0.2, shL: -0.9 + sin(t * 8) * 0.15, elL: -0.85, zL: 0.15, shR: -0.9 + Math.cos(t * 8) * 0.15, elR: -0.85, zR: -0.15 };
+      return {
+        ...p,
+        spine: 0.2,
+        shL: -0.9 + sin(t * 8) * 0.15,
+        elL: -0.85,
+        zL: 0.15,
+        shR: -0.9 + Math.cos(t * 8) * 0.15,
+        elR: -0.85,
+        zR: -0.15,
+      };
     case "snooze":
       return { ...p, shR: -2.4 + Math.abs(sin(t * 6)) * 0.6, elR: -0.3, zR: 0.2 };
     case "lounge":
@@ -190,13 +262,42 @@ export function actionPose(action: ActionPose, t: number): Pose {
     case "phone":
       return { ...p, spine: 0.14, head: 0.5, shL: -1.25, elL: -1.75, zL: 0.28, shR: -1.25, elR: -1.75, zR: -0.28 };
     case "sitphone":
-      return { ...sitting, spine: -0.1, head: 0.5, shL: -1.15, elL: -1.75, zL: 0.28, shR: -1.15, elR: -1.75, zR: -0.28 };
+      return {
+        ...sitting,
+        spine: -0.1,
+        head: 0.5,
+        shL: -1.15,
+        elL: -1.75,
+        zL: 0.28,
+        shR: -1.15,
+        elR: -1.75,
+        zR: -0.28,
+      };
     case "straighten":
-      return { ...p, spine: 0.25, head: 0.35 + sin(t * 1.5) * 0.05, shR: -0.95 + sin(t * 2.4) * 0.05, elR: -1.1, zR: -0.1, shL: -0.7, elL: -1.0 };
+      return {
+        ...p,
+        spine: 0.25,
+        head: 0.35 + sin(t * 1.5) * 0.05,
+        shR: -0.95 + sin(t * 2.4) * 0.05,
+        elR: -1.1,
+        zR: -0.1,
+        shL: -0.7,
+        elL: -1.0,
+      };
     case "wave":
       return { ...p, shR: -2.8, elR: -0.3, zR: 0.45 + sin(t * 11) * 0.4, head: -0.1 };
     case "shrug":
-      return { ...p, pelvisY: p.pelvisY - 0.02, shL: -0.25, elL: -1.4, zL: -0.7, shR: -0.25, elR: -1.4, zR: 0.7, head: 0.25 };
+      return {
+        ...p,
+        pelvisY: p.pelvisY - 0.02,
+        shL: -0.25,
+        elL: -1.4,
+        zL: -0.7,
+        shR: -0.25,
+        elR: -1.4,
+        zR: 0.7,
+        head: 0.25,
+      };
     default:
       return p;
   }
@@ -245,7 +346,7 @@ export class Resident {
     const st = this.station(start.at);
     this.root.position.copy(st.stand);
     this.facing = this.root.rotation.y = st.facing;
-    this.scriptIndex = (index * 3) % def.script.length - 1;
+    this.scriptIndex = ((index * 3) % def.script.length) - 1;
   }
 
   /** A station's stand point and facing in world space. */
@@ -254,7 +355,9 @@ export class Resident {
     return {
       stand: this.house.localToWorld(def.stand.clone()),
       facing: def.facing + this.house.rotation.y,
-      lie: def.lie ? { pos: this.house.localToWorld(def.lie.pos.clone()), facing: def.lie.facing + this.house.rotation.y } : null,
+      lie: def.lie
+        ? { pos: this.house.localToWorld(def.lie.pos.clone()), facing: def.lie.facing + this.house.rotation.y }
+        : null,
     };
   }
 
@@ -382,7 +485,10 @@ export class Resident {
     let lie: { pos: THREE.Vector3; facing: number } | null = null;
     if (this.emote) {
       this.emote.time += dt;
-      pose = this.emote.kind === "cheer" ? cheerPose(Math.min(1, (this.emote.time % 1) / 0.9)) : actionPose(this.emote.kind, time);
+      pose =
+        this.emote.kind === "cheer"
+          ? cheerPose(Math.min(1, (this.emote.time % 1) / 0.9))
+          : actionPose(this.emote.kind, time);
       if (this.emote.time > this.emote.length) this.emote = null;
     } else if (this.moving) {
       this.walkCycle += dt * 11 * Math.min(1.6, this.goal?.speed ?? 1);
@@ -486,5 +592,9 @@ export function drawBoard(canvas: HTMLCanvasElement, resident: Resident) {
   ctx.font = "500 14px 'IBM Plex Mono', monospace";
   ctx.fillStyle = soft;
   ctx.textAlign = "right";
-  ctx.fillText(done === REQUIRED.length ? "EVERY PROMISE KEPT" : done === 0 ? "NOTHING DONE" : "PROMISES KEPT", w - 22, y + 34);
+  ctx.fillText(
+    done === REQUIRED.length ? "EVERY PROMISE KEPT" : done === 0 ? "NOTHING DONE" : "PROMISES KEPT",
+    w - 22,
+    y + 34,
+  );
 }

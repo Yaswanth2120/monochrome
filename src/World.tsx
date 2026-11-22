@@ -227,16 +227,35 @@ export default function World(props: Props) {
     const stone = new THREE.MeshStandardMaterial({ color: 0x1b1b1d, roughness: 0.92 });
     const solidWhite = new THREE.MeshStandardMaterial({ color: WHITE, roughness: 0.6 });
     const dimWhite = new THREE.MeshStandardMaterial({ color: 0x8c8c90, roughness: 0.7 });
-    const pictogram = new THREE.MeshStandardMaterial({ color: WHITE, roughness: 0.5, emissive: 0xffffff, emissiveIntensity: 0.08 });
+    const pictogram = new THREE.MeshStandardMaterial({
+      color: WHITE,
+      roughness: 0.5,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.08,
+    });
     const edge = new THREE.LineBasicMaterial({ color: 0x5c5c62 });
     const faint = (opacity: number, color = 0xffffff) =>
       new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
     const dashed = (opacity: number, dash = 0.6, gap = 0.5) =>
-      new THREE.LineDashedMaterial({ color: 0xffffff, transparent: true, opacity, dashSize: dash, gapSize: gap, depthWrite: false });
+      new THREE.LineDashedMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity,
+        dashSize: dash,
+        gapSize: gap,
+        depthWrite: false,
+      });
     const white = new THREE.Color(WHITE);
     const edgeGrey = new THREE.Color(0x5c5c62);
 
-    function mesh(geometry: THREE.BufferGeometry, material: THREE.Material, parent: THREE.Object3D, x = 0, y = 0, z = 0) {
+    function mesh(
+      geometry: THREE.BufferGeometry,
+      material: THREE.Material,
+      parent: THREE.Object3D,
+      x = 0,
+      y = 0,
+      z = 0,
+    ) {
       const item = new THREE.Mesh(geometry, material);
       item.position.set(x, y, z);
       item.castShadow = true;
@@ -249,7 +268,11 @@ export default function World(props: Props) {
       target.add(lines);
       return lines;
     }
-    function loop(points: THREE.Vector3[], material: THREE.LineBasicMaterial | THREE.LineDashedMaterial, parent: THREE.Object3D = scene) {
+    function loop(
+      points: THREE.Vector3[],
+      material: THREE.LineBasicMaterial | THREE.LineDashedMaterial,
+      parent: THREE.Object3D = scene,
+    ) {
       const line = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points), material);
       line.computeLineDistances();
       parent.add(line);
@@ -263,13 +286,24 @@ export default function World(props: Props) {
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(Math.random() * 0.95);
         const r = 260 + Math.random() * 40;
-        positions.set([r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi) - 20, r * Math.sin(phi) * Math.sin(theta)], i * 3);
+        positions.set(
+          [r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi) - 20, r * Math.sin(phi) * Math.sin(theta)],
+          i * 3,
+        );
       }
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
       const points = new THREE.Points(
         geometry,
-        new THREE.PointsMaterial({ color: 0xffffff, size, sizeAttenuation: false, transparent: true, opacity: 0.8, fog: false, depthWrite: false }),
+        new THREE.PointsMaterial({
+          color: 0xffffff,
+          size,
+          sizeAttenuation: false,
+          transparent: true,
+          opacity: 0.8,
+          fog: false,
+          depthWrite: false,
+        }),
       );
       scene.add(points);
       return points.material as THREE.PointsMaterial;
@@ -288,11 +322,19 @@ export default function World(props: Props) {
     const dustGeometry = new THREE.BufferGeometry();
     const dustAttribute = new THREE.BufferAttribute(dustPositions, 3);
     dustGeometry.setAttribute("position", dustAttribute);
-    scene.add(new THREE.Points(dustGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, transparent: true, opacity: 0.35, depthWrite: false })));
+    scene.add(
+      new THREE.Points(
+        dustGeometry,
+        new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, transparent: true, opacity: 0.35, depthWrite: false }),
+      ),
+    );
 
     // ---------- The floor: an engraved astrolabe far below ----------
     const floorRadius = ring.radius + 70;
-    const floorDisc = new THREE.Mesh(new THREE.CircleGeometry(floorRadius, 96), new THREE.MeshStandardMaterial({ color: 0x060607, roughness: 1 }));
+    const floorDisc = new THREE.Mesh(
+      new THREE.CircleGeometry(floorRadius, 96),
+      new THREE.MeshStandardMaterial({ color: 0x060607, roughness: 1 }),
+    );
     floorDisc.rotation.x = -Math.PI / 2;
     floorDisc.position.y = FLOOR_Y - 0.02;
     floorDisc.receiveShadow = true;
@@ -302,12 +344,16 @@ export default function World(props: Props) {
     scene.add(floor);
     const floorLines = faint(0.16);
     const floorStrong = faint(0.3);
-    for (let r = 4; r < floorRadius - 10; r += r < ring.radius + 14 ? 3 : 7) loop(circlePoints(r, 160), r % 2 ? floorLines : floorStrong, floor);
+    for (let r = 4; r < floorRadius - 10; r += r < ring.radius + 14 ? 3 : 7)
+      loop(circlePoints(r, 160), r % 2 ? floorLines : floorStrong, floor);
     const spokes: THREE.Vector3[] = [];
     for (let i = 0; i < 48; i++) {
       const a = (i / 48) * Math.PI * 2;
       const inner = i % 4 === 0 ? 4 : ring.radius - 4;
-      spokes.push(new THREE.Vector3(Math.sin(a) * inner, 0, Math.cos(a) * inner), new THREE.Vector3(Math.sin(a) * (ring.radius + 14), 0, Math.cos(a) * (ring.radius + 14)));
+      spokes.push(
+        new THREE.Vector3(Math.sin(a) * inner, 0, Math.cos(a) * inner),
+        new THREE.Vector3(Math.sin(a) * (ring.radius + 14), 0, Math.cos(a) * (ring.radius + 14)),
+      );
     }
     floor.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(spokes), floorLines));
     // Two engraved dials that turn slowly in opposite directions, like the rete of an astrolabe.
@@ -317,7 +363,10 @@ export default function World(props: Props) {
       for (let i = 0; i < ticks; i++) {
         const a = (i / ticks) * Math.PI * 2;
         const length = i % long === 0 ? 1.6 : 0.6;
-        points.push(new THREE.Vector3(Math.sin(a) * radius, 0, Math.cos(a) * radius), new THREE.Vector3(Math.sin(a) * (radius + length), 0, Math.cos(a) * (radius + length)));
+        points.push(
+          new THREE.Vector3(Math.sin(a) * radius, 0, Math.cos(a) * radius),
+          new THREE.Vector3(Math.sin(a) * (radius + length), 0, Math.cos(a) * (radius + length)),
+        );
       }
       group.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points), floorStrong));
       loop(circlePoints(radius, 200), floorStrong, group);
@@ -328,16 +377,37 @@ export default function World(props: Props) {
     const innerDial = dial(8.5, 72, 6);
     // Stepped plinth under the core, with an axis line rising to it.
     [7, 5.2, 3.6].forEach((radius, i) => {
-      const tier = mesh(new THREE.CylinderGeometry(radius, radius, 0.7, 64), stone, scene, 0, FLOOR_Y + 0.35 + i * 0.7, 0);
+      const tier = mesh(
+        new THREE.CylinderGeometry(radius, radius, 0.7, 64),
+        stone,
+        scene,
+        0,
+        FLOOR_Y + 0.35 + i * 0.7,
+        0,
+      );
       outline(tier, edge, 30);
     });
-    const axis = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, FLOOR_Y + 2.1, 0), CORE.clone().setY(CORE.y - 1.7)]), dashed(0.5, 0.3, 0.3));
+    const axis = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, FLOOR_Y + 2.1, 0),
+        CORE.clone().setY(CORE.y - 1.7),
+      ]),
+      dashed(0.5, 0.3, 0.3),
+    );
     axis.computeLineDistances();
     scene.add(axis);
 
     // ---------- The orrery: planets on tilted, dashed orbits ----------
     const planetWire = faint(0.85);
-    type Planet = { pivot: THREE.Group; body: THREE.Object3D; radius: number; speed: number; phase: number; spin: number; moons: { body: THREE.Object3D; radius: number; speed: number }[] };
+    type Planet = {
+      pivot: THREE.Group;
+      body: THREE.Object3D;
+      radius: number;
+      speed: number;
+      phase: number;
+      spin: number;
+      moons: { body: THREE.Object3D; radius: number; speed: number }[];
+    };
     function planet(options: {
       orbit: number;
       size: number;
@@ -376,13 +446,38 @@ export default function World(props: Props) {
         return { body: moon, radius, speed: 0.8 - i * 0.25 };
       });
       pivot.add(body);
-      return { pivot, body, radius: options.orbit, speed: options.speed, phase: options.phase, spin: 0.3 / options.size, moons };
+      return {
+        pivot,
+        body,
+        radius: options.orbit,
+        speed: options.speed,
+        phase: options.phase,
+        spin: 0.3 / options.size,
+        moons,
+      };
     }
     const planets = [
       planet({ orbit: 7.5, size: 0.45, tilt: [0.08, -0.05], speed: 0.2, phase: 0, style: "solid" }),
       planet({ orbit: 13.5, size: 0.6, tilt: [0.22, 0.12], speed: 0.11, phase: 2, style: "wire", moons: 1 }),
-      planet({ orbit: ring.radius + 22, size: 2.4, tilt: [0.12, -0.18], speed: 0.022, phase: 2.2, style: "solid", ringed: true, moons: 2 }),
-      planet({ orbit: ring.radius + 36, size: 1.4, tilt: [-0.2, 0.1], speed: 0.015, phase: 4.4, style: "wire", moons: 1 }),
+      planet({
+        orbit: ring.radius + 22,
+        size: 2.4,
+        tilt: [0.12, -0.18],
+        speed: 0.022,
+        phase: 2.2,
+        style: "solid",
+        ringed: true,
+        moons: 2,
+      }),
+      planet({
+        orbit: ring.radius + 36,
+        size: 1.4,
+        tilt: [-0.2, 0.1],
+        speed: 0.015,
+        phase: 4.4,
+        style: "wire",
+        moons: 1,
+      }),
       planet({ orbit: ring.radius + 48, size: 0.9, tilt: [0.32, 0.25], speed: 0.01, phase: 0.8, style: "dim" }),
     ];
     // Small satellites circling the core on crossing orbits.
@@ -407,7 +502,10 @@ export default function World(props: Props) {
     }
     const beltGeometry = new THREE.BufferGeometry();
     beltGeometry.setAttribute("position", new THREE.BufferAttribute(beltPositions, 3));
-    const belt = new THREE.Points(beltGeometry, new THREE.PointsMaterial({ color: 0xbdbdbd, size: 0.1, transparent: true, opacity: 0.7 }));
+    const belt = new THREE.Points(
+      beltGeometry,
+      new THREE.PointsMaterial({ color: 0xbdbdbd, size: 0.1, transparent: true, opacity: 0.7 }),
+    );
     scene.add(belt);
     const boulders = Array.from({ length: 18 }, (_, i) => {
       const size = 0.3 + (i % 4) * 0.22;
@@ -422,10 +520,20 @@ export default function World(props: Props) {
     // Shooting stars.
     const comets = Array.from({ length: 2 }, () => {
       const material = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, fog: false });
-      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), material);
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+        material,
+      );
       line.frustumCulled = false;
       scene.add(line);
-      return { line, material, from: new THREE.Vector3(), velocity: new THREE.Vector3(), age: 2, next: 2 + Math.random() * 5 };
+      return {
+        line,
+        material,
+        from: new THREE.Vector3(),
+        velocity: new THREE.Vector3(),
+        age: 2,
+        next: 2 + Math.random() * 5,
+      };
     });
 
     // ---------- The skyline: towers that rise as the day gets done ----------
@@ -451,10 +559,14 @@ export default function World(props: Props) {
         const hx = width / 2 + 0.01;
         const hz = depth / 2 + 0.01;
         bands.push(
-          new THREE.Vector3(-hx, y, hz), new THREE.Vector3(hx, y, hz),
-          new THREE.Vector3(hx, y, hz), new THREE.Vector3(hx, y, -hz),
-          new THREE.Vector3(hx, y, -hz), new THREE.Vector3(-hx, y, -hz),
-          new THREE.Vector3(-hx, y, -hz), new THREE.Vector3(-hx, y, hz),
+          new THREE.Vector3(-hx, y, hz),
+          new THREE.Vector3(hx, y, hz),
+          new THREE.Vector3(hx, y, hz),
+          new THREE.Vector3(hx, y, -hz),
+          new THREE.Vector3(hx, y, -hz),
+          new THREE.Vector3(-hx, y, -hz),
+          new THREE.Vector3(-hx, y, -hz),
+          new THREE.Vector3(-hx, y, hz),
         );
       }
       body.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(bands), faint(0.22)));
@@ -484,7 +596,13 @@ export default function World(props: Props) {
       core.add(pivot);
       return { ring: ringMesh, material, glow: 0, spin: 0 };
     });
-    const shockMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+    const shockMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
     const shockwave = new THREE.Mesh(new THREE.RingGeometry(0.99, 1, 200), shockMaterial);
     shockwave.rotation.x = -Math.PI / 2;
     shockwave.position.set(0, 1, 0);
@@ -499,7 +617,11 @@ export default function World(props: Props) {
       moon.castShadow = false;
       return { moon, material, tilt: 0.5 + i * 0.9, offset: i * Math.PI };
     });
-    const vowColors = { holding: new THREE.Color(0x8c8c90), kept: new THREE.Color(WHITE), slipped: new THREE.Color(0x1f1f22) };
+    const vowColors = {
+      holding: new THREE.Color(0x8c8c90),
+      kept: new THREE.Color(WHITE),
+      slipped: new THREE.Color(0x1f1f22),
+    };
 
     // ---------- Islands, one per task ----------
     const islands: THREE.Mesh[] = [];
@@ -568,7 +690,8 @@ export default function World(props: Props) {
           break;
         case "chip":
           add(new THREE.BoxGeometry(0.34, 0.06, 0.34));
-          for (const s of [-1, 1]) for (const o of [-0.1, 0, 0.1]) add(new THREE.BoxGeometry(0.08, 0.02, 0.03), s * 0.21, 0, o);
+          for (const s of [-1, 1])
+            for (const o of [-0.1, 0, 0.1]) add(new THREE.BoxGeometry(0.08, 0.02, 0.03), s * 0.21, 0, o);
           break;
         default:
           add(new THREE.TorusGeometry(0.25, 0.085, 12, 35, Math.PI * 1.5)).rotation.z = 0.6;
@@ -606,7 +729,12 @@ export default function World(props: Props) {
       slotGeometry.rotateX(-Math.PI / 2);
       const slotPlate = mesh(slotGeometry, slotDark, island, 0, 0.006, 0);
       const slotLine = new THREE.LineBasicMaterial({ color: 0x48484e });
-      island.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(slotOutline.map((p) => new THREE.Vector3(p.x, 0.012, -p.y))), slotLine));
+      island.add(
+        new THREE.LineLoop(
+          new THREE.BufferGeometry().setFromPoints(slotOutline.map((p) => new THREE.Vector3(p.x, 0.012, -p.y))),
+          slotLine,
+        ),
+      );
       const block = mesh(stoneGeometry, blackStone, island);
       const stoneEdge = new THREE.LineBasicMaterial({ color: task.optional ? 0xb4b4b8 : 0x8a8a90 });
       outline(block, stoneEdge);
@@ -625,7 +753,20 @@ export default function World(props: Props) {
       token.position.copy(island.localToWorld(new THREE.Vector3(0, 2.0, SLOT_Z)));
       const tokenMeshes = buildToken(task.icon, token);
       scene.add(token);
-      return { stone: block, stoneEdge, islandEdge, slotLine, slotPlate, token, tokenMeshes, anchor, thread, threadMaterial, pulse, optional: task.optional };
+      return {
+        stone: block,
+        stoneEdge,
+        islandEdge,
+        slotLine,
+        slotPlate,
+        token,
+        tokenMeshes,
+        anchor,
+        thread,
+        threadMaterial,
+        pulse,
+        optional: task.optional,
+      };
     });
 
     // ---------- Bridges: built stone by stone, only once they are earned ----------
@@ -653,7 +794,12 @@ export default function World(props: Props) {
     const avatar = figure.root;
 
     // ---------- Noise: a buzzing notification over every required task still open ----------
-    const noiseMaterial = new THREE.MeshStandardMaterial({ color: 0xe6e6e6, roughness: 0.4, emissive: 0xffffff, emissiveIntensity: 0.2 });
+    const noiseMaterial = new THREE.MeshStandardMaterial({
+      color: 0xe6e6e6,
+      roughness: 0.4,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.2,
+    });
     const inkMaterial = new THREE.MeshBasicMaterial({ color: 0x2a2a2c });
     const cardGeometry = new RoundedBoxGeometry(0.62, 0.22, 0.03, 2, 0.05);
     const dotGeometry = new THREE.CircleGeometry(0.045, 16);
@@ -673,7 +819,9 @@ export default function World(props: Props) {
       line2.position.set(-0.005, -0.035, 0.017);
       group.add(dot, line1, line2);
       const angle = quest * 2.4;
-      const base = islandCenter(quest).add(new THREE.Vector3(Math.cos(angle) * 1.9, 2.2 + (quest % 3) * 0.3, Math.sin(angle) * 1.9));
+      const base = islandCenter(quest).add(
+        new THREE.Vector3(Math.cos(angle) * 1.9, 2.2 + (quest % 3) * 0.3, Math.sin(angle) * 1.9),
+      );
       group.position.copy(base);
       scene.add(group);
       const scale = task.done ? 0 : 1;
@@ -729,11 +877,17 @@ export default function World(props: Props) {
       for (const p of grit) {
         if (p.life > 0 || thrown >= count) continue;
         thrown++;
-        const landing = from.clone().add(new THREE.Vector3((Math.random() - 0.5) * spread, 0, (Math.random() - 0.5) * spread));
+        const landing = from
+          .clone()
+          .add(new THREE.Vector3((Math.random() - 0.5) * spread, 0, (Math.random() - 0.5) * spread));
         p.item.position.copy(from);
         p.item.visible = true;
         p.item.scale.setScalar(0.6 + Math.random() * 0.8);
-        p.velocity.copy(landing).sub(from).divideScalar(flight).add(new THREE.Vector3(0, 4.5 * flight, 0));
+        p.velocity
+          .copy(landing)
+          .sub(from)
+          .divideScalar(flight)
+          .add(new THREE.Vector3(0, 4.5 * flight, 0));
         p.spin.set(Math.random() * 8, Math.random() * 8, Math.random() * 8);
         p.floor = landing.y;
         p.life = flight + 0.6;
@@ -797,7 +951,8 @@ export default function World(props: Props) {
     const shakeOffset = new THREE.Vector3();
     const temp = new THREE.Vector3();
     const temp2 = new THREE.Vector3();
-    const stoneWorld = (i: number) => islands[i].localToWorld(new THREE.Vector3(0, 0, STONE_START + PUSH_DISTANCE * progress[i]));
+    const stoneWorld = (i: number) =>
+      islands[i].localToWorld(new THREE.Vector3(0, 0, STONE_START + PUSH_DISTANCE * progress[i]));
 
     // ---------- Input ----------
     const raycaster = new THREE.Raycaster();
@@ -844,14 +999,22 @@ export default function World(props: Props) {
       }
       const dx = event.clientX - gesture.x;
       const dy = event.clientY - gesture.y;
-      if (event.pointerType === "touch" && Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4 && performance.now() - gesture.time < 600) {
+      if (
+        event.pointerType === "touch" &&
+        Math.abs(dx) > 45 &&
+        Math.abs(dx) > Math.abs(dy) * 1.4 &&
+        performance.now() - gesture.time < 600
+      ) {
         // Swipe left walks forward, like turning a page.
         state.current.onNavigate(dx < 0 ? 1 : -1);
         return;
       }
       if (Math.hypot(dx, dy) > 6) return;
       const rect = renderer.domElement.getBoundingClientRect();
-      pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, (-(event.clientY - rect.top) / rect.height) * 2 + 1);
+      pointer.set(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        (-(event.clientY - rect.top) / rect.height) * 2 + 1,
+      );
       raycaster.setFromCamera(pointer, camera);
       const hit = raycaster.intersectObjects(islands, false)[0];
       if (hit) state.current.onSelect(hit.object.userData.index);
@@ -905,11 +1068,13 @@ export default function World(props: Props) {
       const width = container.clientWidth;
       const height = container.clientHeight;
       const compact = width < 761;
-      const damp = (from: number, to: number, rate: number) => (reduceMotion ? to : THREE.MathUtils.damp(from, to, rate, dt));
+      const damp = (from: number, to: number, rate: number) =>
+        reduceMotion ? to : THREE.MathUtils.damp(from, to, rate, dt);
 
       // A newly finished task: push its stone if the figure is there, otherwise it slides home alone.
       s.tasks.forEach((task, i) => {
-        if (task.done && !knownDone[i] && !reduceMotion && !push && Math.abs(walk - i) < 0.35) push = { island: i, time: 0 };
+        if (task.done && !knownDone[i] && !reduceMotion && !push && Math.abs(walk - i) < 0.35)
+          push = { island: i, time: 0 };
       });
       knownDone = s.tasks.map((t) => t.done);
       if (s.launches > knownLaunches) {
@@ -1012,7 +1177,11 @@ export default function World(props: Props) {
       // Bridges: a finished task raises the way to the next island; a perfect day closes the circle.
       bridges.forEach((bridge, segment) => {
         const earned = earnedBridge(segment, s) && !(push && push.island === segment) && !(segment === LAST && push);
-        bridge.built = reduceMotion ? (earned ? 1 : 0) : THREE.MathUtils.clamp(bridge.built + (earned ? dt / 1.3 : -dt / 0.6), 0, 1);
+        bridge.built = reduceMotion
+          ? earned
+            ? 1
+            : 0
+          : THREE.MathUtils.clamp(bridge.built + (earned ? dt / 1.3 : -dt / 0.6), 0, 1);
         bridge.stones.forEach((piece, j) => {
           const t = THREE.MathUtils.clamp((bridge.built - (j / BRIDGE_STONES) * 0.6) / 0.4, 0, 1);
           if (t >= 1 && !piece.landed) {
@@ -1095,7 +1264,12 @@ export default function World(props: Props) {
         c.group.scale.setScalar(c.scale);
         const t = seconds + c.seed;
         const twitch = !reduceMotion && Math.sin(t * 0.7) > 0.9 ? Math.sin(t * 70) * 0.05 : 0;
-        if (!reduceMotion) c.group.position.set(c.base.x + Math.sin(t * 0.9) * 0.3 + twitch, c.base.y + Math.sin(t * 1.3) * 0.2, c.base.z + Math.cos(t * 0.7) * 0.3);
+        if (!reduceMotion)
+          c.group.position.set(
+            c.base.x + Math.sin(t * 0.9) * 0.3 + twitch,
+            c.base.y + Math.sin(t * 1.3) * 0.2,
+            c.base.z + Math.cos(t * 0.7) * 0.3,
+          );
         c.group.lookAt(camera.position);
         c.group.rotateZ(Math.sin(t * 1.7) * 0.12 + twitch * 2 + (1 - c.scale) * 3);
       });
@@ -1169,7 +1343,11 @@ export default function World(props: Props) {
           if (c.next <= 0 && c.age >= 1.4) {
             const a = Math.random() * Math.PI * 2;
             c.from.set(Math.sin(a) * 120, 60 + Math.random() * 30, Math.cos(a) * 120);
-            c.velocity.set(-Math.sin(a) * 70 + (Math.random() - 0.5) * 40, -20, -Math.cos(a) * 70 + (Math.random() - 0.5) * 40);
+            c.velocity.set(
+              -Math.sin(a) * 70 + (Math.random() - 0.5) * 40,
+              -20,
+              -Math.cos(a) * 70 + (Math.random() - 0.5) * 40,
+            );
             c.age = 0;
             c.next = 4 + Math.random() * 7;
           }
@@ -1206,13 +1384,24 @@ export default function World(props: Props) {
       controls.target.add(delta);
       camera.position.add(delta);
       const offset = camera.position.clone().sub(controls.target);
-      const length = Math.max(minDistance, THREE.MathUtils.damp(offset.length(), desiredDistance, zoomed ? 7 : autoWide ? 1.4 : 2.2, dt));
+      const length = Math.max(
+        minDistance,
+        THREE.MathUtils.damp(offset.length(), desiredDistance, zoomed ? 7 : autoWide ? 1.4 : 2.2, dt),
+      );
       cameraDistance = length;
       if (performance.now() > userLookUntil) {
         const outward = new THREE.Vector3(Math.sin(outwardHeading), 0, Math.cos(outwardHeading));
         const along = new THREE.Vector3(Math.cos(outwardHeading), 0, -Math.sin(outwardHeading));
-        const close = outward.clone().multiplyScalar(0.84).addScaledVector(along, -0.3).add(new THREE.Vector3(0, 0.5, 0)).normalize();
-        const far = outward.multiplyScalar(0.62).add(new THREE.Vector3(0, 0.78, 0)).normalize();
+        const close = outward
+          .clone()
+          .multiplyScalar(0.84)
+          .addScaledVector(along, -0.3)
+          .add(new THREE.Vector3(0, 0.5, 0))
+          .normalize();
+        const far = outward
+          .multiplyScalar(0.62)
+          .add(new THREE.Vector3(0, 0.78, 0))
+          .normalize();
         offset.normalize().lerp(close.lerp(far, viewBlend).normalize(), 1 - Math.exp(-dt * 1.4));
       }
       camera.position.copy(controls.target).add(offset.setLength(length));
@@ -1247,7 +1436,17 @@ export default function World(props: Props) {
       window.removeEventListener("keydown", onKey);
       controls.dispose();
       const geometries = new Set<THREE.BufferGeometry>();
-      const materials = new Set<THREE.Material>([stone, solidWhite, dimWhite, pictogram, edge, slotDark, gritMaterial, noiseMaterial, inkMaterial]);
+      const materials = new Set<THREE.Material>([
+        stone,
+        solidWhite,
+        dimWhite,
+        pictogram,
+        edge,
+        slotDark,
+        gritMaterial,
+        noiseMaterial,
+        inkMaterial,
+      ]);
       scene.traverse((obj) => {
         if (obj instanceof THREE.Mesh || obj instanceof THREE.Line || obj instanceof THREE.Points) {
           geometries.add(obj.geometry);

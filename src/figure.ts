@@ -108,23 +108,10 @@ export function createFigure({ tone = "white" }: { tone?: "white" | "grey" } = {
     const lower = new THREE.Group();
     lower.position.y = -upperLength;
     upper.add(lower);
-    add(
-      new THREE.CapsuleGeometry(radius * 0.92, lowerLength, 4, 12),
-      material,
-      lower,
-      0,
-      -lowerLength / 2,
-    );
+    add(new THREE.CapsuleGeometry(radius * 0.92, lowerLength, 4, 12), material, lower, 0, -lowerLength / 2);
     const end =
       kind === "leg"
-        ? add(
-            new RoundedBoxGeometry(0.17, 0.09, 0.28, 2, 0.04),
-            material,
-            lower,
-            0,
-            -lowerLength - 0.05,
-            0.06,
-          )
+        ? add(new RoundedBoxGeometry(0.17, 0.09, 0.28, 2, 0.04), material, lower, 0, -lowerLength - 0.05, 0.06)
         : add(new THREE.SphereGeometry(0.072, 14, 12), material, lower, 0, -lowerLength - 0.02);
     return { upper, lower, end };
   }
@@ -171,17 +158,10 @@ export function createFigure({ tone = "white" }: { tone?: "white" | "grey" } = {
     const distance = clamp(Math.hypot(dx, dy, dz), 0.08, UPPER_ARM + FOREARM - 0.002);
     const toward = Math.atan2(-dz, -dy);
     const shoulderBend = Math.acos(
-      clamp(
-        (UPPER_ARM ** 2 + distance ** 2 - FOREARM ** 2) / (2 * UPPER_ARM * distance),
-        -1,
-        1,
-      ),
+      clamp((UPPER_ARM ** 2 + distance ** 2 - FOREARM ** 2) / (2 * UPPER_ARM * distance), -1, 1),
     );
     const elbow =
-      Math.PI -
-      Math.acos(
-        clamp((UPPER_ARM ** 2 + FOREARM ** 2 - distance ** 2) / (2 * UPPER_ARM * FOREARM), -1, 1),
-      );
+      Math.PI - Math.acos(clamp((UPPER_ARM ** 2 + FOREARM ** 2 - distance ** 2) / (2 * UPPER_ARM * FOREARM), -1, 1));
     return {
       sh: toward + shoulderBend,
       el: -elbow,

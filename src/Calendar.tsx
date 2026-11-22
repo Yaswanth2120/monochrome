@@ -57,7 +57,14 @@ function DayMark({ record, size = 26 }: { record: DayRecord | undefined; size?: 
         </>
       )}
       {record.slipped.length > 0 && (
-        <line x1="4" y1={size - 4} x2={size - 4} y2="4" stroke={record.complete ? "#050506" : "#9a9aa0"} strokeWidth="1.6" />
+        <line
+          x1="4"
+          y1={size - 4}
+          x2={size - 4}
+          y2="4"
+          stroke={record.complete ? "#050506" : "#9a9aa0"}
+          strokeWidth="1.6"
+        />
       )}
     </svg>
   );
@@ -139,7 +146,9 @@ export default function Calendar({ history, today, onClose }: Props) {
     if (!record) return "#111113";
     if (record.complete) return "#f2f2f2";
     const score = dayScore(record);
-    return score === 0 ? "#18181b" : `rgb(${Math.round(40 + score * 140)} ${Math.round(40 + score * 140)} ${Math.round(44 + score * 140)})`;
+    return score === 0
+      ? "#18181b"
+      : `rgb(${Math.round(40 + score * 140)} ${Math.round(40 + score * 140)} ${Math.round(44 + score * 140)})`;
   };
 
   // ---------- Habit consistency over the last 30 days ----------
@@ -189,7 +198,11 @@ export default function Calendar({ history, today, onClose }: Props) {
               {week.map(({ key, record: day, future }) => (
                 <span
                   key={key}
-                  title={future ? undefined : `${longDate(key)}: ${day ? (day.complete ? "perfect" : `${Math.round(dayScore(day) * PROMISES)}/${PROMISES}`) : "nothing recorded"}`}
+                  title={
+                    future
+                      ? undefined
+                      : `${longDate(key)}: ${day ? (day.complete ? "perfect" : `${Math.round(dayScore(day) * PROMISES)}/${PROMISES}`) : "nothing recorded"}`
+                  }
                   style={{ background: shade(day, future) }}
                   className={key === today ? "today" : ""}
                 />
@@ -265,7 +278,16 @@ export default function Calendar({ history, today, onClose }: Props) {
             <span>
               <svg width="14" height="14">
                 <circle cx="7" cy="7" r="5" fill="none" stroke="#2c2c31" strokeWidth="2" />
-                <circle cx="7" cy="7" r="5" fill="none" stroke="#d8d8dc" strokeWidth="2" strokeDasharray="18 40" transform="rotate(-90 7 7)" />
+                <circle
+                  cx="7"
+                  cy="7"
+                  r="5"
+                  fill="none"
+                  stroke="#d8d8dc"
+                  strokeWidth="2"
+                  strokeDasharray="18 40"
+                  transform="rotate(-90 7 7)"
+                />
               </svg>
               Partly kept
             </span>
@@ -372,12 +394,17 @@ export default function Calendar({ history, today, onClose }: Props) {
 
       <section className="cal-habits" aria-label="Habit consistency">
         <div className="cal-section-head">
-          <h2>Consistency, last {habits.days} {habits.days === 1 ? "day" : "days"}</h2>
+          <h2>
+            Consistency, last {habits.days} {habits.days === 1 ? "day" : "days"}
+          </h2>
           <span>Where the discipline holds, and where it leaks.</span>
         </div>
         <ul>
           {habits.items.map((item) => (
-            <li key={item.id} className={`${item.id === habits.weakest ? "weakest" : ""} ${item.optional ? "bonus" : ""}`}>
+            <li
+              key={item.id}
+              className={`${item.id === habits.weakest ? "weakest" : ""} ${item.optional ? "bonus" : ""}`}
+            >
               <span className="cal-habit-label">
                 {item.label}
                 {item.optional && <em>bonus</em>}
@@ -387,7 +414,10 @@ export default function Calendar({ history, today, onClose }: Props) {
                 <i style={{ width: `${Math.round(item.rate * 100)}%` }} />
               </span>
               <span className="cal-rate">
-                {Math.round(item.rate * 100)}%<small>{item.hits}/{habits.days}</small>
+                {Math.round(item.rate * 100)}%
+                <small>
+                  {item.hits}/{habits.days}
+                </small>
               </span>
             </li>
           ))}

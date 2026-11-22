@@ -45,7 +45,16 @@ export type House = {
 
 export function buildHouse(
   kit: Kit,
-  options: { index: number; tell: Tell; title: string; level: number; name: string; x: number; z: number; rotY: number },
+  options: {
+    index: number;
+    tell: Tell;
+    title: string;
+    level: number;
+    name: string;
+    x: number;
+    z: number;
+    rotY: number;
+  },
 ): House {
   const { m, box, cylinder } = kit;
   const group = new THREE.Group();
@@ -65,7 +74,12 @@ export function buildHouse(
   houseFloor.userData.ground = true;
   const planks: THREE.Vector3[] = [];
   for (let x = -6.2; x <= 6; x += 0.62) planks.push(new THREE.Vector3(x, 0.065, -4.5), new THREE.Vector3(x, 0.065, 2));
-  group.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(planks), new THREE.LineBasicMaterial({ color: 0x34343a })));
+  group.add(
+    new THREE.LineSegments(
+      new THREE.BufferGeometry().setFromPoints(planks),
+      new THREE.LineBasicMaterial({ color: 0x34343a }),
+    ),
+  );
   // Low cutaway walls, so you can see inside.
   box(12.4, 1.3, 0.16, m.dark, -0.2, 0.06, -4.55, group);
   box(0.16, 1.3, 6.6, m.dark, -6.4, 0.06, -1.25, group);
@@ -73,7 +87,9 @@ export function buildHouse(
   box(DOOR.x0 + 6.4, 0.7, 0.16, m.dark, (DOOR.x0 - 6.4) / 2, 0.06, DOOR.z, group);
   box(6 - DOOR.x1, 0.7, 0.16, m.dark, (6 + DOOR.x1) / 2, 0.06, DOOR.z, group);
   box(0.16, 1.3, 3.4, m.dark, 6.1, 0.06, 0.35, group);
-  [2.6, 3.3, 4.0, 4.7, 5.4].forEach((z, i) => box(0.7, 0.05, 0.45, m.floor, 2.25 + (i % 2 ? 0.15 : -0.1), 0, z, group, m.edgeFaint, false));
+  [2.6, 3.3, 4.0, 4.7, 5.4].forEach((z, i) =>
+    box(0.7, 0.05, 0.45, m.floor, 2.25 + (i % 2 ? 0.15 : -0.1), 0, z, group, m.edgeFaint, false),
+  );
 
   // Bedroom.
   const bed = new THREE.Group();
@@ -149,7 +165,12 @@ export function buildHouse(
   rail(6.85, 2.2, 6.85, GATE.z);
   rail(-6.85, GATE.z, GATE.x0, GATE.z);
   rail(GATE.x1, GATE.z, 6.85, GATE.z);
-  group.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(fence), new THREE.LineBasicMaterial({ color: 0x9a9aa0 })));
+  group.add(
+    new THREE.LineSegments(
+      new THREE.BufferGeometry().setFromPoints(fence),
+      new THREE.LineBasicMaterial({ color: 0x9a9aa0 }),
+    ),
+  );
   const mailbox = new THREE.Group();
   box(0.1, 1.0, 0.1, m.grey, 4.7, 0, 3.75, mailbox);
   box(0.5, 0.4, 0.7, m.white, 4.7, 1.0, 3.75, mailbox);
@@ -212,12 +233,27 @@ export function buildHouse(
     station(shelter, "bus");
   } else if (options.tell === "ferris") {
     // A "TOMORROW" note by the door and dishes piling up.
-    kit.sign([{ text: "TOMORROW", size: 22, weight: 800, color: "#050506" }], 0.9, 0.4, group, 3.6, 0.95, 2.1, 0, { background: "#f2f2f2", border: null });
-    for (let i = 0; i < 6; i++) cylinder(0.22, 0.04, i % 2 ? m.white : m.grey, 5.45 + Math.sin(i) * 0.03, 1.0 + i * 0.05, 1.05, group, 14, null);
+    kit.sign([{ text: "TOMORROW", size: 22, weight: 800, color: "#050506" }], 0.9, 0.4, group, 3.6, 0.95, 2.1, 0, {
+      background: "#f2f2f2",
+      border: null,
+    });
+    for (let i = 0; i < 6; i++)
+      cylinder(0.22, 0.04, i % 2 ? m.white : m.grey, 5.45 + Math.sin(i) * 0.03, 1.0 + i * 0.05, 1.05, group, 14, null);
   } else if (options.tell === "koushik") {
     // Letters overflowing from the mailbox, pizza boxes by the bed.
     for (let i = 0; i < 9; i++) {
-      const letter = box(0.35, 0.02, 0.22, m.white, 4.4 + Math.sin(i * 2.3) * 0.5, 0.04 + (i % 3) * 0.02, 4.1 + Math.cos(i * 1.7) * 0.5, group, null, false);
+      const letter = box(
+        0.35,
+        0.02,
+        0.22,
+        m.white,
+        4.4 + Math.sin(i * 2.3) * 0.5,
+        0.04 + (i % 3) * 0.02,
+        4.1 + Math.cos(i * 1.7) * 0.5,
+        group,
+        null,
+        false,
+      );
       letter.rotation.y = i * 0.7;
     }
     [0, 1, 2].forEach((i) => {

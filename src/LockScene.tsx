@@ -27,7 +27,12 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
   const [caption, setCaption] = useState<Caption>({ tag: "ROCKY · DISCIPLINED", text: "Waking up", user: false });
   const [following, setFollowing] = useState(false);
   const [away, setAway] = useState(false);
-  const cameraRef = useRef<{ zoom: (amount: number) => void; orbit: (angle: number) => void; toggleFollow: () => boolean; reset: () => void } | null>(null);
+  const cameraRef = useRef<{
+    zoom: (amount: number) => void;
+    orbit: (angle: number) => void;
+    toggleFollow: () => boolean;
+    reset: () => void;
+  } | null>(null);
 
   useEffect(() => {
     if (!host.current) return;
@@ -94,7 +99,14 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
     const town = buildTown(kit, scene);
     const houses: House[] = RESIDENTS.map((def, index) => {
       const slot = HOUSE_SLOTS[index];
-      const house = buildHouse(kit, { index, tell: def.tell, title: def.title, level: def.level, name: def.name, ...slot });
+      const house = buildHouse(kit, {
+        index,
+        tell: def.tell,
+        title: def.title,
+        level: def.level,
+        name: def.name,
+        ...slot,
+      });
       scene.add(house.group);
       house.group.updateMatrixWorld(true);
       return house;
@@ -140,7 +152,17 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
     }
     const starGeometry = new THREE.BufferGeometry();
     starGeometry.setAttribute("position", new THREE.BufferAttribute(starPositions, 3));
-    const stars = new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: 1.3, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.7 }));
+    const stars = new THREE.Points(
+      starGeometry,
+      new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: 1.3,
+        sizeAttenuation: false,
+        fog: false,
+        transparent: true,
+        opacity: 0.7,
+      }),
+    );
     scene.add(stars);
 
     // Paper planes from Rocky's mailbox, z's over anyone asleep, Gollum's glowing phone.
@@ -165,17 +187,25 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
     }
     const zTexture = new THREE.CanvasTexture(zCanvas);
     const zs = Array.from({ length: 10 }, () => {
-      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: zTexture, transparent: true, depthWrite: false }));
+      const sprite = new THREE.Sprite(
+        new THREE.SpriteMaterial({ map: zTexture, transparent: true, depthWrite: false }),
+      );
       sprite.visible = false;
       scene.add(sprite);
       return { sprite, life: 0 };
     });
     const zTimers = residents.map(() => 0);
-    const phone = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.22, 0.02), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    const phone = new THREE.Mesh(
+      new THREE.BoxGeometry(0.13, 0.22, 0.02),
+      new THREE.MeshBasicMaterial({ color: 0xffffff }),
+    );
     phone.visible = false;
     scene.add(phone);
     const pings = Array.from({ length: 3 }, (_, i) => {
-      const card = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.18), new THREE.MeshBasicMaterial({ color: 0xe6e6e6, side: THREE.DoubleSide }));
+      const card = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.5, 0.18),
+        new THREE.MeshBasicMaterial({ color: 0xe6e6e6, side: THREE.DoubleSide }),
+      );
       card.visible = false;
       card.userData.offset = i * 2.1;
       scene.add(card);
@@ -418,7 +448,11 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
         const head = gollum.root.localToWorld(new THREE.Vector3(0, sitting ? 1.6 : 1.95, 0));
         pings.forEach((card) => {
           const a = t * 1.3 + card.userData.offset;
-          card.position.set(head.x + Math.cos(a) * 0.9, head.y + 0.4 + Math.sin(t * 3 + card.userData.offset) * 0.12, head.z + Math.sin(a) * 0.9);
+          card.position.set(
+            head.x + Math.cos(a) * 0.9,
+            head.y + 0.4 + Math.sin(t * 3 + card.userData.offset) * 0.12,
+            head.z + Math.sin(a) * 0.9,
+          );
           card.lookAt(camera.position);
         });
       }
@@ -435,14 +469,18 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
             : rocky.emote?.kind === "wave"
               ? "Waving at you"
               : rocky.activity
-                ? rocky.activity.step?.caption ?? "Doing what you asked"
+                ? (rocky.activity.step?.caption ?? "Doing what you asked")
                 : rocky.goal
                   ? "Walking where you sent him"
                   : "Waiting for you";
         } else if (r.moving && r.goal?.step) {
           text = `On the way: ${r.goal.step.caption.replace(/^[^A-Za-z“*]+/, "").toLowerCase()}`;
         }
-        setText({ tag: playing ? "YOU’RE PLAYING" : `${r.def.name.toUpperCase()} · ${r.def.title} · ${r.score}/13`, text, user: playing });
+        setText({
+          tag: playing ? "YOU’RE PLAYING" : `${r.def.name.toUpperCase()} · ${r.def.title} · ${r.score}/13`,
+          text,
+          user: playing,
+        });
       }
 
       // Camera: fly somewhere, follow whoever you're watching, or stay where you put it.
@@ -452,7 +490,8 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
         controls.target.add(cam.fly.target.clone().sub(controls.target).multiplyScalar(k));
         offset.setLength(THREE.MathUtils.lerp(offset.length(), cam.fly.distance, k));
         camera.position.copy(controls.target).add(offset);
-        if (controls.target.distanceTo(cam.fly.target) < 0.05 && Math.abs(offset.length() - cam.fly.distance) < 0.2) cam.fly = null;
+        if (controls.target.distanceTo(cam.fly.target) < 0.05 && Math.abs(offset.length() - cam.fly.distance) < 0.2)
+          cam.fly = null;
       } else if (cam.follow && watching !== null) {
         const aim = residents[watching].root.position.clone().add(new THREE.Vector3(0, 0.9, 0));
         const delta = aim.sub(controls.target).multiplyScalar(1 - Math.exp(-dt * 4));
@@ -465,7 +504,9 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
         const orbitStep = cam.orbit * Math.min(1, dt * 8);
         cam.zoom -= zoomStep;
         cam.orbit -= orbitStep;
-        offset.setLength(THREE.MathUtils.clamp(offset.length() * Math.exp(zoomStep), controls.minDistance, controls.maxDistance));
+        offset.setLength(
+          THREE.MathUtils.clamp(offset.length() * Math.exp(zoomStep), controls.minDistance, controls.maxDistance),
+        );
         offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), orbitStep);
         camera.position.copy(controls.target).add(offset);
       }
@@ -532,14 +573,41 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
         <button aria-label="Rotate right (E)" title="Rotate right (E)" onClick={() => cameraRef.current?.orbit(0.6)}>
           ⟳
         </button>
-        <button aria-label="Follow (F)" title="Follow (F)" aria-pressed={following} className={following ? "on" : ""} onClick={() => cameraRef.current?.toggleFollow()}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+        <button
+          aria-label="Follow (F)"
+          title="Follow (F)"
+          aria-pressed={following}
+          className={following ? "on" : ""}
+          onClick={() => cameraRef.current?.toggleFollow()}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            aria-hidden="true"
+          >
             <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
             <circle cx="12" cy="12" r="3" />
           </svg>
         </button>
-        <button aria-label="Back to Rocky's house (R)" title="Back to Rocky's house (R)" onClick={() => cameraRef.current?.reset()}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true">
+        <button
+          aria-label="Back to Rocky's house (R)"
+          title="Back to Rocky's house (R)"
+          onClick={() => cameraRef.current?.reset()}
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
             <path d="M3 11 12 4l9 7M5 10v10h14V10" />
           </svg>
         </button>
