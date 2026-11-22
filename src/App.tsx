@@ -1,3 +1,4 @@
+import { MonoLogo } from "./Logo";
 import { useEffect, useRef, useState } from "react";
 import Calendar from "./Calendar";
 import { LOCK_EVENT } from "./LockScreen";
@@ -470,11 +471,7 @@ export default function App() {
             setFocus(false);
           }}
         >
-          <span className="mono-symbol">
-            <i />
-            <i />
-            <i />
-          </span>
+          <MonoLogo className="mono-logo" />
           Mono<span className="wordmark-dot">Chrome</span>
         </a>
         <div className="world-tag" role="status">

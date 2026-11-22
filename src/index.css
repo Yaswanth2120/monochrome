@@ -100,26 +100,12 @@
   color: #dddddd;
   line-height: 1;
 }
-.mono-symbol {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 22px;
-  transform: rotate(-17deg);
-  margin-right: 10px;
-}
-.mono-symbol i {
+.mono-logo {
   display: block;
-  width: 4px;
-  height: 12px;
-  background: #dadada;
-  border-radius: 1px;
-}
-.mono-symbol i:nth-child(2) {
-  height: 22px;
-}
-.mono-symbol i:nth-child(3) {
-  height: 17px;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  margin-right: 10px;
 }
 .wordmark-dot {
   color: #8d8d8f;
@@ -1242,19 +1228,10 @@ kbd {
   .wordmark {
     font-size: 27px;
   }
-  .mono-symbol {
-    height: 20px;
-    gap: 2px;
+  .mono-logo {
+    width: 26px;
+    height: 26px;
     margin-right: 8px;
-  }
-  .mono-symbol i {
-    width: 4px;
-  }
-  .mono-symbol i:nth-child(2) {
-    height: 20px;
-  }
-  .mono-symbol i:nth-child(3) {
-    height: 15px;
   }
   .header-actions {
     gap: 15px;
@@ -2812,18 +2789,16 @@ kbd {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: #f2f2f2;
-  color: #050506;
+  background: #050506;
+  color: #f2f2f2;
   box-shadow:
     0 0 0 1px #ffffff40,
     0 0 0 10px #ffffff08;
 }
-.lock-avatar .mono-symbol {
+.lock-avatar .mono-logo {
+  width: 86%;
+  height: 86%;
   margin: 0;
-  transform: rotate(-17deg) scale(1.15);
-}
-.lock-avatar .mono-symbol i {
-  background: #050506;
 }
 .lock-name {
   font-family: "Manrope", sans-serif;

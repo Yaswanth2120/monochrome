@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import LockScene from "./LockScene";
 import { sfx } from "./sound";
+import { MonoLogo } from "./Logo";
 
 /*
  * A lock screen in front of the whole site: a black and white neighbourhood where Rocky lives the
@@ -95,15 +96,6 @@ export function Gate({ children }: { children: ReactNode }) {
 
 // ---------- The lock screen: his home on top, the passcode underneath ----------
 
-function MonoMark() {
-  return (
-    <span className="mono-symbol" aria-hidden="true">
-      <i />
-      <i />
-      <i />
-    </span>
-  );
-}
 
 const KEYS: [string, string][] = [
   ["1", ""],
@@ -220,7 +212,7 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
             }}
           >
             <div className="lock-avatar">
-              <MonoMark />
+              <MonoLogo className="mono-logo" />
             </div>
             <div className="home-login-main">
               <span className="lock-name">MonoChrome</span>
