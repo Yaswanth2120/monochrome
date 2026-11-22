@@ -23,6 +23,10 @@ All notable changes to MonoChrome are recorded here. The format follows [Keep a 
 - Dependabot updates for npm packages and GitHub Actions.
 - MIT license, contributing guide, code of conduct, security policy, and issue and pull request templates.
 
+### Fixed
+
+- The ring world's camera no longer snaps back to the automatic angle 3.5 seconds after you look around. Your angle is kept, turns with the ring as you walk, and resets with **0** or the reset button.
+
 ### Changed
 
 - The lock screen's residents use their own fixed demo checklist instead of the user's routine.
