@@ -2047,7 +2047,9 @@ kbd {
   border-color: var(--accent);
 }
 .count-track i.line {
-  box-shadow: 4px 0 0 -2px #0000, 6px 0 0 -2px #ffffff40;
+  box-shadow:
+    4px 0 0 -2px #0000,
+    6px 0 0 -2px #ffffff40;
 }
 .vow-strip {
   margin-top: 18px;

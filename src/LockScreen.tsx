@@ -96,7 +96,6 @@ export function Gate({ children }: { children: ReactNode }) {
 
 // ---------- The lock screen: his home on top, the passcode underneath ----------
 
-
 const KEYS: [string, string][] = [
   ["1", ""],
   ["2", "A B C"],
@@ -199,7 +198,12 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   }, [device, erase, press, success, waiting]);
 
   return (
-    <div className={`lock home-lock home-lock--${device} ${leaving ? "lock--leaving" : ""}`} role="dialog" aria-modal="true" aria-label="Locked. Enter your passcode.">
+    <div
+      className={`lock home-lock home-lock--${device} ${leaving ? "lock--leaving" : ""}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Locked. Enter your passcode."
+    >
       <LockScene signals={{ pulse, error, success }} lowDetail={device === "phone"} />
 
       <div className="home-panel">
@@ -237,14 +241,33 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
                     setCode(value);
                   }}
                 />
-                <button type="submit" aria-label="Unlock" disabled={!code.length || waiting} className={code.length ? "ready" : ""}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <button
+                  type="submit"
+                  aria-label="Unlock"
+                  disabled={!code.length || waiting}
+                  className={code.length ? "ready" : ""}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
                     <path d="M5 12h14m-6-6 6 6-6 6" />
                   </svg>
                 </button>
               </div>
               <span className="lock-hint">
-                {waiting ? `Too many attempts. Wait ${secondsLeft} seconds.` : wrong ? "Incorrect passcode." : "Type your passcode and press return."}
+                {waiting
+                  ? `Too many attempts. Wait ${secondsLeft} seconds.`
+                  : wrong
+                    ? "Incorrect passcode."
+                    : "Type your passcode and press return."}
               </span>
             </div>
             <ul className="home-controls" aria-label="How to play">
@@ -282,7 +305,16 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
                 <b>0</b>
               </button>
               <button className="lock-delete" onClick={erase} disabled={!code.length} aria-label="Delete">
-                <svg width="26" height="20" viewBox="0 0 26 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true">
+                <svg
+                  width="26"
+                  height="20"
+                  viewBox="0 0 26 20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
                   <path d="M8 1h16a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8l-7-9 7-9z" />
                   <path d="m12 6 8 8m0-8-8 8" strokeLinecap="round" />
                 </svg>

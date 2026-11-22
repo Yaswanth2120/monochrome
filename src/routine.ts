@@ -41,8 +41,22 @@ export type Task = {
 export type Vow = { id: string; label: string; opensAt: number };
 
 export const TASKS: Task[] = [
-  { id: "brush-am", name: "brush", title: "Brush your teeth.", detail: "Start the day clean.", kind: "check", icon: "brush" },
-  { id: "cook", name: "cook", title: "Cook food as per diet.", detail: "Make the food your plan says, not the food you feel like.", kind: "check", icon: "pan" },
+  {
+    id: "brush-am",
+    name: "brush",
+    title: "Brush your teeth.",
+    detail: "Start the day clean.",
+    kind: "check",
+    icon: "brush",
+  },
+  {
+    id: "cook",
+    name: "cook",
+    title: "Cook food as per diet.",
+    detail: "Make the food your plan says, not the food you feel like.",
+    kind: "check",
+    icon: "pan",
+  },
   {
     id: "study-am",
     name: "revise",
@@ -52,7 +66,14 @@ export const TASKS: Task[] = [
     icon: "book",
     optional: true,
   },
-  { id: "bath-am", name: "bath", title: "Take a bath.", detail: "Reset the body before the day starts.", kind: "check", icon: "drop" },
+  {
+    id: "bath-am",
+    name: "bath",
+    title: "Take a bath.",
+    detail: "Reset the body before the day starts.",
+    kind: "check",
+    icon: "drop",
+  },
   {
     id: "breakfast",
     name: "breakfast",
@@ -62,8 +83,22 @@ export const TASKS: Task[] = [
     icon: "egg",
     parts: ["2 eggs", "Protein shake", "Multivitamin"],
   },
-  { id: "work", name: "work", title: "Head to work.", detail: "Show up. That’s half of it.", kind: "check", icon: "case" },
-  { id: "study", name: "study", title: "Start studying.", detail: "Sit down and open the material. Begin.", kind: "check", icon: "book" },
+  {
+    id: "work",
+    name: "work",
+    title: "Head to work.",
+    detail: "Show up. That’s half of it.",
+    kind: "check",
+    icon: "case",
+  },
+  {
+    id: "study",
+    name: "study",
+    title: "Start studying.",
+    detail: "Sit down and open the material. Begin.",
+    kind: "check",
+    icon: "book",
+  },
   {
     id: "jobs",
     name: "apply",
@@ -83,7 +118,14 @@ export const TASKS: Task[] = [
     icon: "cube",
     optional: true,
   },
-  { id: "dishes", name: "dishes", title: "Clean the dishes.", detail: "Leave nothing for tomorrow-you.", kind: "check", icon: "plate" },
+  {
+    id: "dishes",
+    name: "dishes",
+    title: "Clean the dishes.",
+    detail: "Leave nothing for tomorrow-you.",
+    kind: "check",
+    icon: "plate",
+  },
   { id: "bath-pm", name: "bath", title: "Take a bath.", detail: "Wash the day off.", kind: "check", icon: "drop" },
   { id: "dinner", name: "dinner", title: "Have dinner.", detail: "Eat to the plan.", kind: "check", icon: "bowl" },
   {
@@ -94,7 +136,14 @@ export const TASKS: Task[] = [
     kind: "check",
     icon: "chip",
   },
-  { id: "brush-pm", name: "brush", title: "Brush before sleep.", detail: "Close the day clean.", kind: "check", icon: "brush" },
+  {
+    id: "brush-pm",
+    name: "brush",
+    title: "Brush before sleep.",
+    detail: "Close the day clean.",
+    kind: "check",
+    icon: "brush",
+  },
   {
     id: "sleep",
     name: "sleep",
