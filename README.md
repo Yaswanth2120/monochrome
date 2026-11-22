@@ -1,5 +1,11 @@
 # MonoChrome
 
+[![CI](https://github.com/Yaswanth2120/monochrome/actions/workflows/ci.yml/badge.svg)](https://github.com/Yaswanth2120/monochrome/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-black.svg)](LICENSE)
+![React 19](https://img.shields.io/badge/React-19-black?logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-black?logo=typescript)
+![three.js](https://img.shields.io/badge/three.js-0.187-black?logo=threedotjs)
+
 **Black-and-white world where discipline is the only colour.**
 
 MonoChrome is a 3D habit tracker built to keep a daily routine honest. You don't tick boxes in a list: you commit to each task by holding a key, the day only moves forward in order, and a black-and-white world records every promise you keep or break.
@@ -57,11 +63,24 @@ Press **C** to see the record: a year-of-days heatmap, a month grid with the det
 - Tailwind CSS v4 plus hand-written CSS
 - Data is stored in the browser's `localStorage` only. Nothing is sent anywhere.
 
+## Getting started
+
+You need Node 22 and pnpm 10 (the exact versions are pinned in `.mise.toml`).
+
 ```bash
 pnpm install
 pnpm dev      # http://localhost:8443
 pnpm build    # static site in dist/
 ```
+
+| Script           | What it does                                                |
+| ---------------- | ----------------------------------------------------------- |
+| `pnpm dev`       | Start the dev server with hot reload                        |
+| `pnpm build`     | Build the static site into `dist/`                          |
+| `pnpm typecheck` | Type-check with TypeScript                                  |
+| `pnpm lint`      | Lint with oxlint                                            |
+| `pnpm format`    | Format everything with oxfmt                                |
+| `pnpm check`     | Everything CI runs: typecheck, lint, format check and build |
 
 ## Project layout
 
@@ -80,6 +99,17 @@ src/
 
 ## Roadmap
 
-- Sign in with Google, with each user's data kept in their own Google Drive app folder. No central database.
+- Sign in with Google and sync your routine across devices.
 - A routine editor, so anyone can build their own list of tasks and vows.
 - Per-user passcodes.
+- Neighbourhoods with friends: real people move into the houses and their boards update live.
+
+See [CHANGELOG.md](CHANGELOG.md) for what has shipped.
+
+## Contributing
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for the branch, commit and pull request conventions, and follow the [Code of Conduct](CODE_OF_CONDUCT.md). To report a security issue, see [SECURITY.md](SECURITY.md).
+
+## License
+
+[MIT](LICENSE) © 2026 Yaswanth2120
