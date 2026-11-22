@@ -214,7 +214,7 @@ export function buildTown(kit: Kit, scene: THREE.Scene) {
     const group = new THREE.Group();
     group.position.set(x, 0, z);
     group.rotation.y = facing;
-    const body = box(w, h, d, options.dark ? m.dark : m.building, 0, 0, 0, group, m.edgeBright);
+    box(w, h, d, options.dark ? m.dark : m.building, 0, 0, 0, group, m.edgeBright);
     box(w + 0.3, 0.3, d + 0.3, m.dark, 0, h, 0, group, m.edge);
     // Windows: outlines on every floor of the front and sides.
     if (!lowDetail) {
