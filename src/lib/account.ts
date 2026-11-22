@@ -37,8 +37,8 @@ export function useAccount(): Account {
         import("firebase/firestore"),
       ]);
       if (cancelled) return;
-      // Finishes a sign-in that fell back to a full-page redirect (popup blocked).
-      getRedirectResult(auth).catch(() => {});
+      // Finishes a sign-in (or a passcode-reset confirmation) that used a full-page redirect.
+      settleRedirect(getRedirectResult(auth).then((result) => !!result));
       stopAuth = onAuthStateChanged(auth, (user) => {
         stopProfile();
         stopProfile = () => {};
@@ -73,6 +73,34 @@ export function useAccount(): Account {
   return account;
 }
 
+/**
+ * An app opened from the iPhone/iPad home screen can't use sign-in popups, so it signs in with a
+ * full-page redirect instead. (Firebase's recommended setup for this also serves sign-in from the
+ * app's own domain: VITE_FIREBASE_AUTH_DOMAIN is the hosting domain in production builds.)
+ */
+const iosHomeScreenApp = () =>
+  (navigator as Navigator & { standalone?: boolean }).standalone === true ||
+  (/iPad|iPhone|iPod/.test(navigator.userAgent) && window.matchMedia?.("(display-mode: standalone)").matches);
+
+/** Set before a redirect that confirms "Forgot passcode?", read once when the app comes back. */
+const RESET_KEY = "monochrome.passcodeReset";
+let redirectSettled: Promise<boolean> = Promise.resolve(false);
+function settleRedirect(result: Promise<boolean>) {
+  redirectSettled = result.catch(() => false);
+}
+
+/** True once, right after returning from a Google confirmation for a passcode reset. */
+export async function takeResetConfirmation() {
+  let asked = false;
+  try {
+    asked = sessionStorage.getItem(RESET_KEY) === "1";
+    sessionStorage.removeItem(RESET_KEY);
+  } catch {
+    // No storage: no pending reset.
+  }
+  return asked && (await redirectSettled);
+}
+
 async function googleProvider() {
   const { GoogleAuthProvider } = await import("firebase/auth");
   const provider = new GoogleAuthProvider();
@@ -84,6 +112,10 @@ export async function signInWithGoogle() {
   const { auth } = await getFirebase();
   const { signInWithPopup, signInWithRedirect } = await import("firebase/auth");
   const provider = await googleProvider();
+  if (iosHomeScreenApp()) {
+    await signInWithRedirect(auth, provider);
+    return;
+  }
   try {
     await signInWithPopup(auth, provider);
   } catch (error) {
@@ -97,12 +129,26 @@ export async function signInWithGoogle() {
   }
 }
 
-/** Confirms it's really the account owner (used before resetting a forgotten passcode). */
-export async function confirmWithGoogle() {
+/**
+ * Confirms it's really the account owner (used before resetting a forgotten passcode).
+ * Resolves "confirmed" after a popup, or "redirecting" when the page is about to leave for Google;
+ * the app then picks the reset up with takeResetConfirmation() when it comes back.
+ */
+export async function confirmWithGoogle(): Promise<"confirmed" | "redirecting"> {
   const { auth } = await getFirebase();
-  const { reauthenticateWithPopup } = await import("firebase/auth");
+  const { reauthenticateWithPopup, reauthenticateWithRedirect } = await import("firebase/auth");
   if (!auth.currentUser) throw new Error("Not signed in.");
+  if (iosHomeScreenApp()) {
+    try {
+      sessionStorage.setItem(RESET_KEY, "1");
+    } catch {
+      // Without storage the reset can't resume; the user can try again.
+    }
+    await reauthenticateWithRedirect(auth.currentUser, await googleProvider());
+    return "redirecting";
+  }
   await reauthenticateWithPopup(auth.currentUser, await googleProvider());
+  return "confirmed";
 }
 
 export async function signOutAccount() {

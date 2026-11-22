@@ -9,6 +9,7 @@ import {
   confirmWithGoogle,
   savePasscode,
   signInWithGoogle,
+  takeResetConfirmation,
   signOutAccount,
   useAccount,
 } from "./lib/account";
@@ -326,10 +327,24 @@ function LockScreen({ account, onUnlock }: { account: Account; onUnlock: () => v
     setMessage(null);
     await signOutAccount().catch(() => setMessage("Couldn't sign out. Try again."));
   }
+  // Back from a Google redirect that confirmed "Forgot passcode?" (iPhone/iPad home-screen app).
+  useEffect(() => {
+    if (account.status !== "signedIn") return;
+    let active = true;
+    takeResetConfirmation().then((confirmed) => {
+      if (!active || !confirmed) return;
+      setResetting(true);
+      setMessage("Confirmed. Choose a new passcode.");
+    });
+    return () => {
+      active = false;
+    };
+  }, [account.status]);
+
   async function forgot() {
     setMessage(null);
     try {
-      await confirmWithGoogle();
+      if ((await confirmWithGoogle()) === "redirecting") return;
       setResetting(true);
       setFirstCode(null);
       setCode("");

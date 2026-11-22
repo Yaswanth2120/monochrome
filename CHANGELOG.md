@@ -6,6 +6,11 @@ All notable changes to MonoChrome are recorded here. The format follows [Keep a 
 
 ### Added
 
+- **Installable app (PWA)** for iPhone, iPad, Android, Mac and Windows:
+  - full-size app icons and a web app manifest;
+  - a service worker that opens the app offline and picks up new versions as soon as they're deployed;
+  - full-screen home-screen mode that respects the notch and home indicator.
+- Sign-in and "Forgot passcode?" use a full-page redirect in the iPhone/iPad home-screen app, where popups don't work.
 - **Settings page** (**,** or the ⚙ button):
   - a routine editor for tasks (add, edit, delete, drag or arrow reordering, type, steps, counter goals, bonus flag, time window and icon) and vows (with a seal time);
   - Account (change passcode, sign out) and Preferences.

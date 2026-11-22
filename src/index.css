@@ -3941,3 +3941,18 @@ kbd {
     flex-basis: 100%;
   }
 }
+
+/* ---------- Installed app (PWA) on notched phones ----------
+ * The page draws edge to edge (viewport-fit=cover, translucent status bar), so keep the header
+ * below the notch and the dock and footer above the home indicator. Margins work alongside each
+ * breakpoint's own padding. env() is 0 everywhere else, so desktop is unchanged. */
+.game-header {
+  margin-top: env(safe-area-inset-top, 0px);
+}
+.game-footer,
+.quest-dock {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+.cal-page {
+  padding-top: calc(34px + env(safe-area-inset-top, 0px));
+}
