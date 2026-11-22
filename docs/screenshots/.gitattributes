@@ -1,0 +1,2 @@
+# README screenshots are small; store them as normal git files, not LFS.
+*.png -filter -diff -merge binary

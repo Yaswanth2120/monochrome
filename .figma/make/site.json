@@ -1,0 +1,11 @@
+{
+  "description": "MonoChrome: a black-and-white world where discipline is the only colour. A 3D habit tracker.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  },
+  "title": "MonoChrome"
+}
