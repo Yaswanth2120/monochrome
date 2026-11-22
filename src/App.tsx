@@ -1,4 +1,6 @@
 import { MonoLogo } from "./Logo";
+import { useAccountContext } from "./lib/account";
+import { useHistory } from "./lib/useHistory";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Calendar from "./Calendar";
 import { LOCK_EVENT } from "./LockScreen";
@@ -17,8 +19,6 @@ import {
   emptyDay,
   formatMinutes,
   isDone,
-  loadHistory,
-  saveHistory,
   streak,
   timing,
   unlockedIndex,
@@ -89,7 +89,8 @@ function Close() {
 }
 
 export default function App() {
-  const [history, setHistory] = useState(loadHistory);
+  const { uid } = useAccountContext();
+  const { history, saveDay, ready } = useHistory(uid);
   const [clock, setClock] = useState(() => new Date());
   const today = dayKey(clock);
   const minutes = dayMinutes(clock);
@@ -99,7 +100,7 @@ export default function App() {
   const currentStreak = streak(history, today);
   const requiredDone = REQUIRED.filter((task) => isDone(record, task.id)).length;
 
-  const [current, setCurrent] = useState(() => unlockedIndex(loadHistory()[dayKey(new Date())] ?? emptyDay()));
+  const [current, setCurrent] = useState(() => unlockedIndex(history[dayKey(new Date())] ?? emptyDay()));
   const [panel, setPanel] = useState<"today" | "help" | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [toastKey, setToastKey] = useState(0);
@@ -130,7 +131,14 @@ export default function App() {
     lastDay.current = today;
     setCurrent(unlockedIndex(history[today] ?? emptyDay()));
   }, [today, history]);
-  useEffect(() => saveHistory(history), [history]);
+  // When synced history first arrives, start on the first unfinished island (once per mount).
+  const placed = useRef(ready);
+  useEffect(() => {
+    if (!ready || placed.current) return;
+    placed.current = true;
+    // oxlint-disable-next-line react/set-state-in-effect -- one-off jump once the cloud data lands
+    setCurrent(unlockedIndex(history[today] ?? emptyDay()));
+  }, [ready, history, today]);
 
   function show(next: Toast) {
     setToast(next);
@@ -142,7 +150,7 @@ export default function App() {
   }
   function save(next: DayRecord) {
     next.complete = dayComplete(next);
-    setHistory((all) => ({ ...all, [today]: next }));
+    saveDay(today, next);
     return next;
   }
 

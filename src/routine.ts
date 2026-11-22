@@ -223,20 +223,30 @@ export function dayComplete(record: DayRecord) {
 
 const STORAGE_KEY = "stride.days.v3";
 
+const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
+export const isDayKey = (key: string) => DAY_KEY.test(key);
+
+/** A clean DayRecord from untrusted data (localStorage or Firestore), or null if it isn't one. */
+export function sanitizeDay(value: unknown): DayRecord | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Partial<DayRecord>;
+  return {
+    done: Array.isArray(v.done) ? v.done.filter((id) => typeof id === "string") : [],
+    counts: v.counts && typeof v.counts === "object" ? v.counts : {},
+    parts: v.parts && typeof v.parts === "object" ? v.parts : {},
+    slipped: Array.isArray(v.slipped) ? v.slipped.filter((id) => typeof id === "string") : [],
+    complete: v.complete === true,
+  };
+}
+
 export function loadHistory(): Record<string, DayRecord> {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
     if (!saved || typeof saved !== "object" || Array.isArray(saved)) return {};
     const history: Record<string, DayRecord> = {};
-    for (const [key, value] of Object.entries(saved as Record<string, Partial<DayRecord>>)) {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(key) || !value || typeof value !== "object") continue;
-      history[key] = {
-        done: Array.isArray(value.done) ? value.done.filter((id) => typeof id === "string") : [],
-        counts: value.counts && typeof value.counts === "object" ? value.counts : {},
-        parts: value.parts && typeof value.parts === "object" ? value.parts : {},
-        slipped: Array.isArray(value.slipped) ? value.slipped.filter((id) => typeof id === "string") : [],
-        complete: value.complete === true,
-      };
+    for (const [key, value] of Object.entries(saved as Record<string, unknown>)) {
+      const day = isDayKey(key) ? sanitizeDay(value) : null;
+      if (day) history[key] = day;
     }
     return history;
   } catch {

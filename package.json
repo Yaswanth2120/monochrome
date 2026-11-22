@@ -13,7 +13,9 @@
     "lint": "oxlint",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
-    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm build"
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm build",
+    "emulators": "firebase emulators:start --only auth,firestore",
+    "dev:emulators": "VITE_USE_FIREBASE_EMULATORS=true vite"
   },
   "dependencies": {
     "firebase": "^13.4.0",
@@ -28,6 +30,7 @@
     "@types/react-dom": "^19.3.0",
     "@types/three": "^0.187.0",
     "@vitejs/plugin-react": "^6.3.0",
+    "firebase-tools": "^15.37.0",
     "oxfmt": "^0.79.0",
     "oxlint": "^1.94.0",
     "tailwindcss": "^4.3.5",

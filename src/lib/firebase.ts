@@ -43,11 +43,21 @@ export function getFirebase(): Promise<FirebaseServices> {
     ] = await Promise.all([import("firebase/app"), import("firebase/auth"), import("firebase/firestore")]);
     const app = initializeApp(config);
     const auth = getAuth(app);
+    const useEmulators = env.VITE_USE_FIREBASE_EMULATORS === "true";
     // Cache data on the device so the app opens instantly and keeps working offline;
     // changes sync when the connection comes back. The tab manager shares the cache across tabs.
     const db = initializeFirestore(app, {
       localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
     });
+    // Local development and tests: talk to `firebase emulators:start` instead of the real project.
+    if (useEmulators) {
+      const [{ connectAuthEmulator }, { connectFirestoreEmulator }] = await Promise.all([
+        import("firebase/auth"),
+        import("firebase/firestore"),
+      ]);
+      connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+      connectFirestoreEmulator(db, "127.0.0.1", 8080);
+    }
     return { app, auth, db };
   })();
   return services;

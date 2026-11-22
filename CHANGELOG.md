@@ -6,6 +6,10 @@ All notable changes to MonoChrome are recorded here. The format follows [Keep a 
 
 ### Added
 
+- **Sign in with Google.** The lock screen asks you to sign in once per device, then to create a personal 4-digit passcode. The passcode is stored only as a salted PBKDF2 hash in your private account, and is used to unlock from then on. Includes "Sign out" and "Forgot passcode?" (re-confirm with Google, then set a new one).
+- **Live sync.** Your day history lives in your account and updates across devices within a second, and works offline. History already in the browser is copied to your account the first time you sign in.
+- Stricter Firestore rules: per-field validation for profiles and day records.
+- Local Firebase emulators for development (`pnpm emulators`, `pnpm dev:emulators`).
 - Firebase project setup: a Firestore database in us-central1, deny-by-default security rules, the Hosting config, and a lazily loaded Firebase client (`src/lib/firebase.ts`) with an offline cache.
 - Deploy workflow that publishes `main` to Firebase Hosting after every merge, once the deploy key is added.
 - `.env.example`. Firebase config comes from environment variables, and the app falls back to local-only mode without them.

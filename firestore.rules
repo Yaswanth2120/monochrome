@@ -12,10 +12,41 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
-    // Private data: routine, vows, day history, settings and the passcode hash.
-    // Only the signed-in owner can read or write anything under their own user document.
-    match /users/{uid}/{document=**} {
-      allow read, write: if isOwner(uid);
+    // users/{uid}: the account's private profile (display name and passcode hash).
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validProfile(request.resource.data);
+      allow delete: if isOwner(uid);
+
+      function validProfile(data) {
+        return data.keys().hasOnly(["name", "passcode", "updatedAt"])
+          && (!("name" in data) || (data.name is string && data.name.size() <= 120))
+          && (!("passcode" in data) || validPasscode(data.passcode));
+      }
+      function validPasscode(p) {
+        return p is map
+          && p.keys().hasOnly(["salt", "hash", "iterations"])
+          && p.salt is string && p.salt.size() == 32
+          && p.hash is string && p.hash.size() == 64
+          && p.iterations is int && p.iterations >= 100000 && p.iterations <= 1000000;
+      }
+
+      // users/{uid}/days/{yyyy-mm-dd}: one document per day of the routine.
+      match /days/{day} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && day.matches("^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+          && validDay(request.resource.data);
+        allow delete: if isOwner(uid);
+      }
+      function validDay(d) {
+        return d.keys().hasOnly(["done", "counts", "parts", "slipped", "complete", "updatedAt"])
+          && d.done is list && d.done.size() <= 100
+          && d.slipped is list && d.slipped.size() <= 100
+          && d.counts is map
+          && d.parts is map
+          && d.complete is bool;
+      }
     }
 
     // Default deny for everything else.

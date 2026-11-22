@@ -1,8 +1,11 @@
-# Install scripts that are deliberately not run. Neither is needed for the browser build.
+# Install scripts that are deliberately not run. None are needed: the first two are browser
+# dependencies of firebase, and re2 is an optional native speed-up for firebase-tools.
 # allowBuilds is the pnpm 11 setting; ignoredBuiltDependencies is the pnpm 10 one (CI, .mise.toml).
 allowBuilds:
   "@firebase/util": false
   protobufjs: false
+  re2: false
 ignoredBuiltDependencies:
   - "@firebase/util"
   - protobufjs
+  - re2
