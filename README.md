@@ -50,6 +50,21 @@ After unlocking, the day is a ring of 15 islands, one per task, in a monochrome 
 - The day rolls over at 4 AM.
 - Sound effects are generated with Web Audio. **M** mutes them, **H** hides the task dock, **L** locks the screen, and the zoom controls work anywhere in the world.
 
+## Settings: make the routine yours
+
+Press **,** or the ⚙ button to open Settings.
+
+- **Routine:** add, edit, delete and reorder tasks (drag, or use the arrows). Each task has:
+  - a name, a short label and a description;
+  - a type: hold to commit, steps, or a counter with a goal and a stretch;
+  - a bonus flag and an optional time window;
+  - an icon.
+- **Vows:** add, rename, reorder or remove them, and choose when each can be sealed at night.
+- **Account:** change your passcode, or sign out.
+- **Preferences:** sound and the keyboard reference.
+
+Edits are saved as a draft first. Once you've done anything today, saved changes start **tomorrow at 4 AM**, so a skipped task can't be deleted to rescue the day. Before then you can choose **Apply now**. Each day's score is frozen when it's saved, so editing the routine never rewrites past days.
+
 ## Streak calendar
 
 Press **C** to see the record: a year-of-days heatmap, a month grid with the details of each day, and a dashboard with streaks and 30-day consistency.
@@ -106,7 +121,9 @@ src/
   Calendar.tsx      streak calendar and dashboard
   LockScreen.tsx    passcode gate (desktop panel / touch keypad)
   LockScene.tsx     the 3D city scene and camera
-  routine.ts        tasks, vows, timing rules, history
+  routine.ts        routine model, default routine, timing rules, scoring, validation
+  Settings.tsx      settings page and routine editor
+  lib/              Firebase client, account, passcodes, routine and history sync
   sound.ts          synthesized sound effects
   figure.ts         the pictogram character rig and poses
   town/             city kit, houses, residents, roads, traffic, pedestrians

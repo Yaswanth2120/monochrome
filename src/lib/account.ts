@@ -133,5 +133,11 @@ export function authErrorMessage(error: unknown): string | null {
 }
 
 /** The signed-in user for the app behind the lock screen; uid is null in local-only mode. */
-export const AccountContext = createContext<{ uid: string | null; name: string | null }>({ uid: null, name: null });
+export type AccountInfo = {
+  uid: string | null;
+  name: string | null;
+  user: AccountUser | null;
+  passcode: StoredPasscode | null;
+};
+export const AccountContext = createContext<AccountInfo>({ uid: null, name: null, user: null, passcode: null });
 export const useAccountContext = () => useContext(AccountContext);

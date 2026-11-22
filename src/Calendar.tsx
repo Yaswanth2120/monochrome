@@ -1,10 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   type DayRecord,
-  PROMISES,
-  REQUIRED,
-  TASKS,
-  VOWS,
+  type Routine,
   addDays,
   bestStreak,
   dateOf,
@@ -12,11 +9,15 @@ import {
   firstDay,
   isDone,
   keyOf,
+  promisesOf,
+  scoreLabel,
+  scoreOf,
   streak,
 } from "./routine";
 
 type Props = {
   history: Record<string, DayRecord>;
+  routine: Routine;
   today: string;
   onClose: () => void;
 };
@@ -28,10 +29,10 @@ const longDate = (key: string) =>
   dateOf(key).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
 /** A day's mark: a ring that fills with the share of promises kept; a perfect day is a solid disc. */
-function DayMark({ record, size = 26 }: { record: DayRecord | undefined; size?: number }) {
+function DayMark({ record, routine, size = 26 }: { record: DayRecord | undefined; routine: Routine; size?: number }) {
   const r = size / 2 - 2;
   const c = 2 * Math.PI * r;
-  const score = dayScore(record);
+  const score = dayScore(record, routine);
   if (!record) return <span className="cal-dot" aria-hidden="true" />;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true" className="cal-mark">
@@ -69,7 +70,7 @@ function DayMark({ record, size = 26 }: { record: DayRecord | undefined; size?: 
   );
 }
 
-export default function Calendar({ history, today, onClose }: Props) {
+export default function Calendar({ history, routine, today, onClose }: Props) {
   const todayDate = dateOf(today);
   const [view, setView] = useState({ year: todayDate.getFullYear(), month: todayDate.getMonth() });
   const [selected, setSelected] = useState(today);
@@ -102,8 +103,14 @@ export default function Calendar({ history, today, onClose }: Props) {
     for (let i = 0; i < 30; i++) {
       const key = addDays(today, -i);
       if (key < start) break;
-      kept += dayScore(history[key]) * PROMISES;
-      possible += PROMISES;
+      const record = history[key];
+      const day = record?.total
+        ? { kept: record.kept ?? 0, total: record.total }
+        : record
+          ? scoreOf(record, routine)
+          : { kept: 0, total: promisesOf(routine) };
+      kept += day.kept;
+      possible += day.total;
     }
     return {
       current: streak(history, today),
@@ -111,7 +118,7 @@ export default function Calendar({ history, today, onClose }: Props) {
       perfect,
       rate: possible ? Math.round((kept / possible) * 100) : 0,
     };
-  }, [history, today, start]);
+  }, [history, routine, today, start]);
 
   // ---------- Month grid, weeks starting Monday ----------
   const cells = useMemo(() => {
@@ -146,7 +153,7 @@ export default function Calendar({ history, today, onClose }: Props) {
     if (future) return "transparent";
     if (!record) return "#111113";
     if (record.complete) return "#f2f2f2";
-    const score = dayScore(record);
+    const score = dayScore(record, routine);
     return score === 0
       ? "#18181b"
       : `rgb(${Math.round(40 + score * 140)} ${Math.round(40 + score * 140)} ${Math.round(44 + score * 140)})`;
@@ -161,8 +168,12 @@ export default function Calendar({ history, today, onClose }: Props) {
       days.push(key);
     }
     const items = [
-      ...TASKS.map((task) => ({ id: task.id, label: task.title.replace(/\.$/, ""), optional: !!task.optional })),
-      ...VOWS.map((vow) => ({ id: vow.id, label: vow.label, optional: false })),
+      ...routine.tasks.map((task) => ({
+        id: task.id,
+        label: task.title.replace(/\.$/, ""),
+        optional: !!task.optional,
+      })),
+      ...routine.vows.map((vow) => ({ id: vow.id, label: vow.label, optional: false })),
     ].map((item) => {
       const hits = days.filter((key) => history[key] && isDone(history[key], item.id)).length;
       return { ...item, hits, rate: days.length ? hits / days.length : 0 };
@@ -170,7 +181,7 @@ export default function Calendar({ history, today, onClose }: Props) {
     const required = items.filter((item) => !item.optional);
     const weakest = required.length && days.length > 1 ? required.reduce((a, b) => (b.rate < a.rate ? b : a)) : null;
     return { items, days: days.length, weakest: weakest && weakest.rate < 1 ? weakest.id : null };
-  }, [history, today, start]);
+  }, [history, routine, today, start]);
 
   // ---------- The selected day ----------
   const record = history[selected];
@@ -202,7 +213,7 @@ export default function Calendar({ history, today, onClose }: Props) {
                   title={
                     future
                       ? undefined
-                      : `${longDate(key)}: ${day ? (day.complete ? "perfect" : `${Math.round(dayScore(day) * PROMISES)}/${PROMISES}`) : "nothing recorded"}`
+                      : `${longDate(key)}: ${day ? (day.complete ? "perfect" : scoreLabel(day, routine)) : "nothing recorded"}`
                   }
                   style={{ background: shade(day, future) }}
                   className={key === today ? "today" : ""}
@@ -252,7 +263,7 @@ export default function Calendar({ history, today, onClose }: Props) {
                   : day
                     ? day.complete
                       ? ", perfect day"
-                      : `, ${Math.round(dayScore(day) * PROMISES)} of ${PROMISES} kept${day.slipped.length ? ", vow slipped" : ""}`
+                      : `, ${scoreLabel(day, routine).replace("/", " of ")} kept${day.slipped.length ? ", vow slipped" : ""}`
                     : ", nothing recorded"
               }`;
               return (
@@ -264,7 +275,7 @@ export default function Calendar({ history, today, onClose }: Props) {
                   aria-pressed={key === selected}
                 >
                   <span className="cal-num">{Number(key.slice(8))}</span>
-                  {!future && !before && <DayMark record={day} />}
+                  {!future && !before && <DayMark record={day} routine={routine} />}
                 </button>
               );
             })}
@@ -315,11 +326,9 @@ export default function Calendar({ history, today, onClose }: Props) {
           ) : (
             <>
               <div className="cal-detail-score">
-                <DayMark record={record} size={44} />
+                <DayMark record={record} routine={routine} size={44} />
                 <div>
-                  <b>
-                    {Math.round(dayScore(record) * PROMISES)}/{PROMISES}
-                  </b>
+                  <b>{scoreLabel(record, routine)}</b>
                   <span>
                     {record.complete
                       ? "Perfect day. Every promise kept."
@@ -332,7 +341,7 @@ export default function Calendar({ history, today, onClose }: Props) {
                 </div>
               </div>
               <ul className="cal-tasks">
-                {TASKS.map((task) => {
+                {routine.tasks.map((task) => {
                   const done = isDone(record, task.id);
                   return (
                     <li key={task.id} className={`${done ? "done" : ""} ${task.optional ? "bonus" : ""}`}>
@@ -346,7 +355,7 @@ export default function Calendar({ history, today, onClose }: Props) {
                     </li>
                   );
                 })}
-                {VOWS.map((vow) => {
+                {routine.vows.map((vow) => {
                   const slipped = record.slipped.includes(vow.id);
                   const kept = isDone(record, vow.id);
                   return (
@@ -423,9 +432,7 @@ export default function Calendar({ history, today, onClose }: Props) {
             </li>
           ))}
         </ul>
-        {REQUIRED.length > 0 && habits.days <= 1 && (
-          <p className="cal-note">This fills in as the days add up. Come back tomorrow.</p>
-        )}
+        {habits.days <= 1 && <p className="cal-note">This fills in as the days add up. Come back tomorrow.</p>}
       </section>
     </div>
   );

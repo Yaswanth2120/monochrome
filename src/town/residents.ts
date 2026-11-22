@@ -1,10 +1,29 @@
 import * as THREE from "three";
 import { type Pose, cheerPose, createFigure, idlePose, walkPose } from "../figure";
-import { REQUIRED } from "../routine";
 import { DOOR, GATE, PLOT, STATIONS, type StationDef, type Tell } from "./house";
 
+/**
+ * The 13 tasks on every resident's board. A fixed demo for the lock screen: it never shows the
+ * signed-in user's own routine, so nothing private is visible on a locked screen.
+ */
+const BOARD_TASKS: { id: string; title: string }[] = [
+  { id: "brush-am", title: "Brush your teeth" },
+  { id: "cook", title: "Cook food as per diet" },
+  { id: "bath-am", title: "Take a bath" },
+  { id: "breakfast", title: "Breakfast" },
+  { id: "work", title: "Head to work" },
+  { id: "study", title: "Start studying" },
+  { id: "jobs", title: "Apply to jobs" },
+  { id: "dishes", title: "Clean the dishes" },
+  { id: "bath-pm", title: "Take a bath" },
+  { id: "dinner", title: "Have dinner" },
+  { id: "tech", title: "Work on something technical" },
+  { id: "brush-pm", title: "Brush before sleep" },
+  { id: "sleep", title: "Lights out" },
+];
+
 /*
- * The six residents. Everyone has the same 13 required tasks (the real daily checklist);
+ * The six residents. Everyone has the same 13 demo tasks (BOARD_TASKS);
  * Rocky does them all, the neighbours show the ways people slip. Each resident runs a
  * looping script of steps; Rocky can also be steered by the player.
  */
@@ -530,7 +549,7 @@ export class Resident {
     return this.lying > 0.5;
   }
   get score() {
-    return REQUIRED.filter((task) => this.checklist.get(task.id) === 1).length;
+    return BOARD_TASKS.filter((task) => this.checklist.get(task.id) === 1).length;
   }
 }
 
@@ -559,7 +578,7 @@ export function drawBoard(canvas: HTMLCanvasElement, resident: Resident) {
   ctx.fillStyle = soft;
   ctx.fillText(`${resident.def.title} · LVL ${resident.def.level}`, 22, 78);
   ctx.fillRect(22, 92, w - 44, 2);
-  REQUIRED.forEach((task, i) => {
+  BOARD_TASKS.forEach((task, i) => {
     const y = 112 + i * 29;
     const value = resident.checklist.get(task.id) ?? 0;
     ctx.strokeStyle = ink;
@@ -584,16 +603,16 @@ export function drawBoard(canvas: HTMLCanvasElement, resident: Resident) {
     ctx.fillText(task.title.replace(/\.$/, ""), 54, y + 15);
   });
   const done = resident.score;
-  const y = 112 + REQUIRED.length * 29 + 14;
+  const y = 112 + BOARD_TASKS.length * 29 + 14;
   ctx.fillStyle = ink;
   ctx.fillRect(22, y - 6, w - 44, 2);
   ctx.font = "800 40px Manrope, 'DM Sans', sans-serif";
-  ctx.fillText(`${done}/${REQUIRED.length}`, 22, y + 40);
+  ctx.fillText(`${done}/${BOARD_TASKS.length}`, 22, y + 40);
   ctx.font = "500 14px 'IBM Plex Mono', monospace";
   ctx.fillStyle = soft;
   ctx.textAlign = "right";
   ctx.fillText(
-    done === REQUIRED.length ? "EVERY PROMISE KEPT" : done === 0 ? "NOTHING DONE" : "PROMISES KEPT",
+    done === BOARD_TASKS.length ? "EVERY PROMISE KEPT" : done === 0 ? "NOTHING DONE" : "PROMISES KEPT",
     w - 22,
     y + 34,
   );

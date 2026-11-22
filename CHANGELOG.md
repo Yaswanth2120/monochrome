@@ -6,6 +6,12 @@ All notable changes to MonoChrome are recorded here. The format follows [Keep a 
 
 ### Added
 
+- **Settings page** (**,** or the ⚙ button):
+  - a routine editor for tasks (add, edit, delete, drag or arrow reordering, type, steps, counter goals, bonus flag, time window and icon) and vows (with a seal time);
+  - Account (change passcode, sign out) and Preferences.
+- **Your routine lives in your account.** New accounts start from the default routine. The world, dock, calendar and streaks all follow your own list.
+- **Edits wait for tomorrow** once you've started the day, with **Apply now** before that. A scheduled change can be cancelled.
+- **Frozen day scores**, so routine edits never change past days.
 - **Sign in with Google.** The lock screen asks you to sign in once per device, then to create a personal 4-digit passcode. The passcode is stored only as a salted PBKDF2 hash in your private account, and is used to unlock from then on. Includes "Sign out" and "Forgot passcode?" (re-confirm with Google, then set a new one).
 - **Live sync.** Your day history lives in your account and updates across devices within a second, and works offline. History already in the browser is copied to your account the first time you sign in.
 - Stricter Firestore rules: per-field validation for profiles and day records.
@@ -19,6 +25,8 @@ All notable changes to MonoChrome are recorded here. The format follows [Keep a 
 
 ### Changed
 
+- The lock screen's residents use their own fixed demo checklist instead of the user's routine.
+- The lights-out countdown and the counter messages work with any routine.
 - The codebase is formatted with a shared oxfmt config.
 - Latest-value refs update in effects instead of during render.
 
