@@ -2,17 +2,33 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import LockScene from "./LockScene";
 import { sfx } from "./sound";
 import { MonoLogo } from "./Logo";
+import {
+  type Account,
+  AccountContext,
+  authErrorMessage,
+  confirmWithGoogle,
+  savePasscode,
+  signInWithGoogle,
+  signOutAccount,
+  useAccount,
+} from "./lib/account";
+import { PASSCODE_LENGTH, verifyPasscode } from "./lib/passcode";
 
 /*
  * A lock screen in front of the whole site: a black and white neighbourhood where Rocky lives the
  * routine (and you can play with him) on top, and the passcode underneath. Mac-style entry on computers,
  * iOS-style keypad on tablets and phones.
  *
+ * With Firebase configured, the panel walks through three steps: sign in with Google, create a
+ * 4-digit passcode (first time only), then unlock with it. Without Firebase (a fresh clone, local-only
+ * mode) it falls back to the original built-in passcode.
+ *
  * Note: this is a privacy screen, not security. The check runs in the browser, so anyone who
  * can open developer tools can get past it. It keeps a glance at your routine private.
  */
 
-const PASSCODE = "1005";
+/** Only used in local-only mode, when there are no accounts. */
+const LOCAL_PASSCODE = "1005";
 const SESSION_KEY = "stride.unlocked";
 const MAX_TRIES = 5;
 const LOCKOUT_SECONDS = 30;
@@ -37,31 +53,40 @@ export function detectDevice(): Device {
   return "desktop";
 }
 
-function readUnlocked() {
+/** Which identity ("local" or a uid) this tab is unlocked for, so a reload doesn't ask again. */
+function readSession() {
   try {
-    return sessionStorage.getItem(SESSION_KEY) === "1";
+    return sessionStorage.getItem(SESSION_KEY);
   } catch {
-    return false;
+    return null;
   }
 }
-function writeUnlocked(value: boolean) {
+function writeSession(id: string | null) {
   try {
-    if (value) sessionStorage.setItem(SESSION_KEY, "1");
+    if (id) sessionStorage.setItem(SESSION_KEY, id);
     else sessionStorage.removeItem(SESSION_KEY);
   } catch {
     // Without storage the site simply asks again on reload.
   }
 }
 
-/** Shows the lock screen until unlocked; the app only mounts after the first unlock. */
+const identityOf = (account: Account) =>
+  account.status === "signedIn" ? account.user.uid : account.status === "local" ? "local" : null;
+
+/** Shows the lock screen until unlocked; the app only mounts after the first unlock for this account. */
 export function Gate({ children }: { children: ReactNode }) {
-  const [locked, setLocked] = useState(() => !readUnlocked());
-  const [everUnlocked, setEverUnlocked] = useState(() => readUnlocked());
+  const account = useAccount();
+  const identity = identityOf(account);
+  const [unlockedFor, setUnlockedFor] = useState(readSession);
+  const [mountedFor, setMountedFor] = useState<string | null>(null);
+  const unlocked = identity !== null && unlockedFor === identity;
+  // Signing out (identity null) or switching accounts unmounts the app and its data.
+  const showApp = identity !== null && (unlocked || mountedFor === identity);
 
   useEffect(() => {
     const lock = () => {
-      writeUnlocked(false);
-      setLocked(true);
+      writeSession(null);
+      setUnlockedFor(null);
     };
     let hiddenAt = 0;
     const onVisibility = () => {
@@ -77,20 +102,26 @@ export function Gate({ children }: { children: ReactNode }) {
   }, []);
 
   const unlock = useCallback(() => {
-    writeUnlocked(true);
-    setEverUnlocked(true);
-    setLocked(false);
-  }, []);
+    if (!identity) return;
+    writeSession(identity);
+    setUnlockedFor(identity);
+    setMountedFor(identity);
+  }, [identity]);
+
+  const context = {
+    uid: account.status === "signedIn" ? account.user.uid : null,
+    name: account.status === "signedIn" ? account.user.name : null,
+  };
 
   return (
-    <>
-      {everUnlocked && (
-        <div inert={locked} aria-hidden={locked}>
+    <AccountContext.Provider value={context}>
+      {showApp && (
+        <div key={identity} inert={!unlocked} aria-hidden={!unlocked}>
           {children}
         </div>
       )}
-      {locked && <LockScreen onUnlock={unlock} />}
-    </>
+      {!unlocked && <LockScreen account={account} onUnlock={unlock} />}
+    </AccountContext.Provider>
   );
 }
 
@@ -108,7 +139,20 @@ const KEYS: [string, string][] = [
   ["9", "W X Y Z"],
 ];
 
-function LockScreen({ onUnlock }: { onUnlock: () => void }) {
+type Mode = "loading" | "error" | "signin" | "create" | "unlock";
+
+function modeOf(account: Account, resetting: boolean): Mode {
+  if (account.status === "local") return "unlock";
+  if (account.status === "loading") return "loading";
+  if (account.status === "error") return "error";
+  if (account.status === "signedOut") return "signin";
+  if (account.passcode === undefined) return "loading";
+  return account.passcode === null || resetting ? "create" : "unlock";
+}
+
+const firstName = (name: string) => name.split(/\s+/)[0] || name;
+
+function LockScreen({ account, onUnlock }: { account: Account; onUnlock: () => void }) {
   const [device] = useState(detectDevice);
   const [now, setNow] = useState(() => Date.now());
   const [code, setCode] = useState("");
@@ -119,9 +163,18 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   const [success, setSuccess] = useState(false);
   const [pulse, setPulse] = useState(0);
   const [error, setError] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  /** Create mode: the first entry, waiting to be confirmed. */
+  const [firstCode, setFirstCode] = useState<string | null>(null);
+  /** "Forgot passcode?" after confirming with Google: set a new one. */
+  const [resetting, setResetting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const waiting = lockedUntil > now;
   const secondsLeft = Math.ceil((lockedUntil - now) / 1000);
+  const mode = modeOf(account, resetting);
+  const user = account.status === "signedIn" ? account.user : null;
+  const typing = mode === "create" || mode === "unlock";
 
   useEffect(() => {
     if (!lockedUntil) return;
@@ -129,25 +182,84 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
     return () => window.clearInterval(id);
   }, [lockedUntil]);
   useEffect(() => {
-    if (device === "desktop" && !leaving && !waiting) inputRef.current?.focus();
-  }, [device, leaving, waiting]);
+    if (device === "desktop" && typing && !leaving && !waiting) inputRef.current?.focus();
+  }, [device, leaving, waiting, typing, firstCode]);
 
-  const check = useCallback(
-    (attempt: string) => {
-      if (attempt === PASSCODE) {
-        // He cheers first, then the screen opens.
-        sfx.unlocked();
-        setSuccess(true);
-        window.setTimeout(() => setLeaving(true), 1100);
-        window.setTimeout(onUnlock, 1800);
+  const shake = useCallback(() => {
+    sfx.denied();
+    navigator.vibrate?.([60, 40, 60]);
+    setError((value) => value + 1);
+    setShaking(false);
+    requestAnimationFrame(() => setShaking(true));
+    window.setTimeout(() => setShaking(false), 450);
+    window.setTimeout(() => {
+      setCode("");
+      inputRef.current?.focus();
+    }, 380);
+  }, []);
+
+  const succeed = useCallback(() => {
+    // He cheers first, then the screen opens.
+    sfx.unlocked();
+    setSuccess(true);
+    window.setTimeout(() => setLeaving(true), 1100);
+    window.setTimeout(onUnlock, 1800);
+  }, [onUnlock]);
+
+  const submit = useCallback(
+    async (attempt: string) => {
+      if (busy || success) return;
+      if (mode === "create" && user) {
+        if (attempt.length !== PASSCODE_LENGTH) {
+          setMessage(`Use exactly ${PASSCODE_LENGTH} digits.`);
+          shake();
+          return;
+        }
+        if (!firstCode) {
+          setFirstCode(attempt);
+          setMessage(null);
+          setCode("");
+          return;
+        }
+        if (attempt !== firstCode) {
+          setFirstCode(null);
+          setMessage("Those didn't match. Start again.");
+          shake();
+          return;
+        }
+        setBusy(true);
+        try {
+          await savePasscode(user, attempt);
+          setResetting(false);
+          succeed();
+        } catch {
+          setFirstCode(null);
+          setMessage("Couldn't save your passcode. Check your connection.");
+          shake();
+        } finally {
+          setBusy(false);
+        }
         return;
       }
-      sfx.denied();
-      navigator.vibrate?.([60, 40, 60]);
-      setError((value) => value + 1);
-      setShaking(false);
-      requestAnimationFrame(() => setShaking(true));
-      window.setTimeout(() => setShaking(false), 450);
+      if (mode !== "unlock") return;
+      setBusy(true);
+      let ok = false;
+      try {
+        ok =
+          account.status === "signedIn" && account.passcode
+            ? await verifyPasscode(attempt, account.passcode)
+            : attempt === LOCAL_PASSCODE;
+      } catch (e) {
+        setMessage(e instanceof Error ? e.message : "Couldn't check the passcode.");
+      } finally {
+        setBusy(false);
+      }
+      if (ok) {
+        setMessage(null);
+        succeed();
+        return;
+      }
+      shake();
       const tries = wrong + 1;
       setWrong(tries);
       if (tries >= MAX_TRIES) {
@@ -155,38 +267,34 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
         setNow(Date.now());
         setWrong(0);
       }
-      window.setTimeout(() => {
-        setCode("");
-        inputRef.current?.focus();
-      }, 380);
     },
-    [onUnlock, wrong],
+    [account, busy, firstCode, mode, shake, succeed, success, user, wrong],
   );
 
   const press = useCallback(
     (digit: string) => {
-      if (waiting || success || code.length >= 4) return;
+      if (!typing || waiting || success || busy || code.length >= PASSCODE_LENGTH) return;
       sfx.key();
       setPulse((value) => value + 1);
       const next = code + digit;
       setCode(next);
-      if (next.length === 4) window.setTimeout(() => check(next), 150);
+      if (next.length === PASSCODE_LENGTH) window.setTimeout(() => submit(next), 150);
     },
-    [check, code, success, waiting],
+    [busy, code, submit, success, typing, waiting],
   );
   const erase = useCallback(() => setCode((value) => value.slice(0, -1)), []);
 
   // Hardware keyboards: digits enter the code on every layout (letters and arrows drive him).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (success || waiting) return;
+      if (!typing || success || waiting) return;
       if (device === "desktop") {
         if (document.activeElement !== inputRef.current && /^\d$/.test(e.key)) {
           e.preventDefault();
           inputRef.current?.focus();
           sfx.key();
           setPulse((value) => value + 1);
-          setCode((value) => (value + e.key).slice(0, 8));
+          setCode((value) => (value + e.key).slice(0, PASSCODE_LENGTH));
         }
         return;
       }
@@ -195,14 +303,107 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [device, erase, press, success, waiting]);
+  }, [device, erase, press, success, typing, waiting]);
+
+  async function signIn() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      await signInWithGoogle();
+    } catch (e) {
+      setMessage(authErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function signOut() {
+    setResetting(false);
+    setFirstCode(null);
+    setCode("");
+    setMessage(null);
+    await signOutAccount().catch(() => setMessage("Couldn't sign out. Try again."));
+  }
+  async function forgot() {
+    setMessage(null);
+    try {
+      await confirmWithGoogle();
+      setResetting(true);
+      setFirstCode(null);
+      setCode("");
+      setWrong(0);
+      setLockedUntil(0);
+      setMessage("Confirmed. Choose a new passcode.");
+    } catch (e) {
+      setMessage(authErrorMessage(e));
+    }
+  }
+
+  const title =
+    mode === "loading"
+      ? "Loading your account…"
+      : mode === "error"
+        ? "Can't reach MonoChrome"
+        : mode === "signin"
+          ? "Sign in"
+          : mode === "create"
+            ? firstCode
+              ? "Confirm Passcode"
+              : resetting
+                ? "New Passcode"
+                : "Create a Passcode"
+            : waiting
+              ? `Try again in ${secondsLeft} ${secondsLeft === 1 ? "second" : "seconds"}`
+              : "Enter Passcode";
+
+  const hint = waiting
+    ? `Too many attempts. Wait ${secondsLeft} seconds.`
+    : message
+      ? message
+      : mode === "error" && account.status === "error"
+        ? account.message
+        : mode === "signin"
+          ? "Your routine and streak, synced on every device."
+          : mode === "create"
+            ? firstCode
+              ? "Type it once more to confirm."
+              : `Choose ${PASSCODE_LENGTH} digits. You'll use them to unlock MonoChrome.`
+            : mode === "unlock"
+              ? wrong
+                ? "Incorrect passcode."
+                : device === "desktop"
+                  ? "Type your passcode and press return."
+                  : ""
+              : "";
+
+  const accountLinks = user && (
+    <span className="lock-account">
+      {firstName(user.name)} ·{" "}
+      <button type="button" onClick={signOut}>
+        Sign out
+      </button>
+      {mode === "unlock" && (
+        <>
+          {" · "}
+          <button type="button" onClick={forgot}>
+            Forgot passcode?
+          </button>
+        </>
+      )}
+    </span>
+  );
+
+  const googleButton = (
+    <button type="button" className="lock-google" onClick={signIn} disabled={busy}>
+      {busy ? "Opening Google…" : "Continue with Google"}
+    </button>
+  );
 
   return (
     <div
       className={`lock home-lock home-lock--${device} ${leaving ? "lock--leaving" : ""}`}
       role="dialog"
       aria-modal="true"
-      aria-label="Locked. Enter your passcode."
+      aria-label={`Locked. ${title}.`}
     >
       <LockScene signals={{ pulse, error, success }} lowDetail={device === "phone"} />
 
@@ -212,7 +413,7 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
             className="home-login"
             onSubmit={(e) => {
               e.preventDefault();
-              if (code.length && !waiting) check(code);
+              if (typing && code.length && !waiting) submit(code);
             }}
           >
             <div className="lock-avatar">
@@ -220,55 +421,62 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
             </div>
             <div className="home-login-main">
               <span className="lock-name">MonoChrome</span>
-              <span className="lock-tagline">Black-and-white world where discipline is the only colour.</span>
-              <div className="lock-field" data-shake={shaking}>
-                <input
-                  ref={inputRef}
-                  type="password"
-                  inputMode="numeric"
-                  autoComplete="current-password"
-                  maxLength={8}
-                  placeholder={waiting ? `Try again in ${secondsLeft}s` : "Enter Passcode"}
-                  aria-label="Passcode"
-                  value={code}
-                  disabled={waiting || success}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, "");
-                    if (value.length > code.length) {
-                      sfx.key();
-                      setPulse((p) => p + 1);
-                    }
-                    setCode(value);
-                  }}
-                />
-                <button
-                  type="submit"
-                  aria-label="Unlock"
-                  disabled={!code.length || waiting}
-                  className={code.length ? "ready" : ""}
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M5 12h14m-6-6 6 6-6 6" />
-                  </svg>
-                </button>
-              </div>
-              <span className="lock-hint">
-                {waiting
-                  ? `Too many attempts. Wait ${secondsLeft} seconds.`
-                  : wrong
-                    ? "Incorrect passcode."
-                    : "Type your passcode and press return."}
+              <span className="lock-tagline">
+                {user && mode !== "create"
+                  ? `Welcome back, ${firstName(user.name)}.`
+                  : "Black-and-white world where discipline is the only colour."}
               </span>
+              {typing ? (
+                <div className="lock-field" data-shake={shaking}>
+                  <input
+                    ref={inputRef}
+                    type="password"
+                    inputMode="numeric"
+                    autoComplete={mode === "create" ? "new-password" : "current-password"}
+                    maxLength={PASSCODE_LENGTH}
+                    placeholder={waiting ? `Try again in ${secondsLeft}s` : title}
+                    aria-label={title}
+                    value={code}
+                    disabled={waiting || success || busy}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, "").slice(0, PASSCODE_LENGTH);
+                      if (value.length > code.length) {
+                        sfx.key();
+                        setPulse((p) => p + 1);
+                      }
+                      setCode(value);
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    aria-label={mode === "create" ? "Continue" : "Unlock"}
+                    disabled={!code.length || waiting || busy}
+                    className={code.length ? "ready" : ""}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M5 12h14m-6-6 6 6-6 6" />
+                    </svg>
+                  </button>
+                </div>
+              ) : mode === "signin" ? (
+                googleButton
+              ) : (
+                <span className="lock-status">{title}</span>
+              )}
+              <span className="lock-hint" aria-live="polite">
+                {hint}
+              </span>
+              {accountLinks}
             </div>
             <ul className="home-controls" aria-label="How to play">
               <li>
@@ -286,40 +494,56 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
         ) : (
           <div className="home-pad">
             <span className="lock-title" aria-live="polite">
-              {waiting ? `Try again in ${secondsLeft} ${secondsLeft === 1 ? "second" : "seconds"}` : "Enter Passcode"}
+              {title}
             </span>
-            <div className="lock-dots" data-shake={shaking} aria-label={`${code.length} of 4 digits entered`}>
-              {[0, 1, 2, 3].map((i) => (
-                <i key={i} className={i < code.length ? "on" : ""} />
-              ))}
-            </div>
-            <div className="lock-keys">
-              {KEYS.map(([digit, letters]) => (
-                <button key={digit} onClick={() => press(digit)} disabled={waiting} aria-label={digit}>
-                  <b>{digit}</b>
-                  {letters && <small>{letters}</small>}
-                </button>
-              ))}
-              <span />
-              <button onClick={() => press("0")} disabled={waiting} aria-label="0">
-                <b>0</b>
-              </button>
-              <button className="lock-delete" onClick={erase} disabled={!code.length} aria-label="Delete">
-                <svg
-                  width="26"
-                  height="20"
-                  viewBox="0 0 26 20"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
+            {typing ? (
+              <>
+                <div
+                  className="lock-dots"
+                  data-shake={shaking}
+                  aria-label={`${code.length} of ${PASSCODE_LENGTH} digits entered`}
                 >
-                  <path d="M8 1h16a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8l-7-9 7-9z" />
-                  <path d="m12 6 8 8m0-8-8 8" strokeLinecap="round" />
-                </svg>
-              </button>
-            </div>
+                  {Array.from({ length: PASSCODE_LENGTH }, (_, i) => (
+                    <i key={i} className={i < code.length ? "on" : ""} />
+                  ))}
+                </div>
+                {hint && <span className="lock-hint lock-hint--pad">{hint}</span>}
+                <div className="lock-keys">
+                  {KEYS.map(([digit, letters]) => (
+                    <button key={digit} onClick={() => press(digit)} disabled={waiting || busy} aria-label={digit}>
+                      <b>{digit}</b>
+                      {letters && <small>{letters}</small>}
+                    </button>
+                  ))}
+                  <span />
+                  <button onClick={() => press("0")} disabled={waiting || busy} aria-label="0">
+                    <b>0</b>
+                  </button>
+                  <button className="lock-delete" onClick={erase} disabled={!code.length} aria-label="Delete">
+                    <svg
+                      width="26"
+                      height="20"
+                      viewBox="0 0 26 20"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M8 1h16a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8l-7-9 7-9z" />
+                      <path d="m12 6 8 8m0-8-8 8" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="lock-pad-message">
+                <MonoLogo className="mono-logo lock-pad-logo" />
+                <span className="lock-hint lock-hint--pad">{hint}</span>
+                {mode === "signin" && googleButton}
+              </div>
+            )}
+            {accountLinks}
           </div>
         )}
       </div>

@@ -61,7 +61,7 @@ Press **C** to see the record: a year-of-days heatmap, a month grid with the det
 - React 19, TypeScript and Vite
 - three.js for both 3D worlds. Everything is built in code from boxes, lines and canvas-drawn signs, with no 3D model files.
 - Tailwind CSS v4 plus hand-written CSS
-- Firebase (Auth, Firestore and Hosting) for accounts and sync. Until sign-in ships, data stays in the browser's `localStorage`.
+- Firebase: Google sign-in, Firestore with live sync and an offline cache, and Hosting. Builds without Firebase config fall back to local-only mode with `localStorage`.
 
 ## Getting started
 
@@ -90,6 +90,13 @@ Accounts and sync run on Firebase: Auth for Google sign-in, Firestore for data, 
 - `firebase.json` and `.firebaserc` hold the Hosting and Firestore config for the `monochrome-y` project.
 - Every merge into `main` deploys to Firebase Hosting through `.github/workflows/deploy.yml`.
 
+To work on accounts without touching the real project, run the local emulators (Java required):
+
+```bash
+pnpm emulators        # Auth on :9099, Firestore on :8080
+pnpm dev:emulators    # the app, signed in against the emulators
+```
+
 ## Project layout
 
 ```
@@ -107,9 +114,7 @@ src/
 
 ## Roadmap
 
-- Sign in with Google and sync your routine across devices.
 - A routine editor, so anyone can build their own list of tasks and vows.
-- Per-user passcodes.
 - Neighbourhoods with friends: real people move into the houses and their boards update live.
 
 See [CHANGELOG.md](CHANGELOG.md) for what has shipped.
