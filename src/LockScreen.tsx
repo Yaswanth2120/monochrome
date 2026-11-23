@@ -174,6 +174,10 @@ function LockScreen({ account, onUnlock }: { account: Account; onUnlock: () => v
   /** "Forgot passcode?" after confirming with Google: set a new one. */
   const [resetting, setResetting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  /** Phones and tablets: the keypad stays tucked away so the city has the screen, and slides up on demand. */
+  const [sheet, setSheet] = useState<"closed" | "open" | "closing">("closed");
+  const [activity, setActivity] = useState(0);
+  const swipeFrom = useRef<number | null>(null);
   const waiting = lockedUntil > now;
   const secondsLeft = Math.ceil((lockedUntil - now) / 1000);
   const mode = modeOf(account, resetting);
@@ -275,11 +279,30 @@ function LockScreen({ account, onUnlock }: { account: Account; onUnlock: () => v
     [account, busy, firstCode, mode, shake, succeed, success, user, wrong],
   );
 
+  const openSheet = useCallback(() => {
+    setSheet("open");
+    setActivity((n) => n + 1);
+  }, []);
+  const closeSheet = useCallback(() => {
+    setSheet((state) => (state === "open" ? "closing" : state));
+    window.setTimeout(() => {
+      setSheet((state) => (state === "closing" ? "closed" : state));
+      setCode("");
+    }, 220);
+  }, []);
+  // Left open with nothing happening, the keypad slides away again.
+  useEffect(() => {
+    if (sheet !== "open" || success || busy) return;
+    const id = window.setTimeout(closeSheet, 25_000);
+    return () => window.clearTimeout(id);
+  }, [sheet, activity, success, busy, closeSheet]);
+
   const press = useCallback(
     (digit: string) => {
       if (!typing || waiting || success || busy || code.length >= PASSCODE_LENGTH) return;
       sfx.key();
       setPulse((value) => value + 1);
+      setActivity((n) => n + 1);
       const next = code + digit;
       setCode(next);
       if (next.length === PASSCODE_LENGTH) window.setTimeout(() => submit(next), 150);
@@ -302,12 +325,15 @@ function LockScreen({ account, onUnlock }: { account: Account; onUnlock: () => v
         }
         return;
       }
-      if (/^\d$/.test(e.key)) press(e.key);
-      else if (e.key === "Backspace") erase();
+      if (/^\d$/.test(e.key)) {
+        if (sheet === "closed") setSheet("open");
+        press(e.key);
+      } else if (e.key === "Backspace") erase();
+      else if (e.key === "Escape") closeSheet();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [device, erase, press, success, typing, waiting]);
+  }, [device, erase, press, success, typing, waiting, sheet, closeSheet]);
 
   async function signIn() {
     setBusy(true);
@@ -424,6 +450,9 @@ function LockScreen({ account, onUnlock }: { account: Account; onUnlock: () => v
       aria-label={`Locked. ${title}.`}
     >
       <LockScene signals={{ pulse, error, success }} lowDetail={device === "phone"} />
+      {device !== "desktop" && sheet === "open" && !success && (
+        <button type="button" className="home-backdrop" aria-label="Hide keypad" onClick={closeSheet} />
+      )}
 
       <div className="home-panel">
         {device === "desktop" ? (
@@ -510,12 +539,47 @@ function LockScreen({ account, onUnlock }: { account: Account; onUnlock: () => v
             </ul>
           </form>
         ) : (
-          <div className="home-pad">
-            <span className="lock-title" aria-live="polite">
-              {title}
-            </span>
-            {typing ? (
-              <>
+          <>
+            {sheet === "closed" ? (
+              <div className="home-dock">
+                {typing ? (
+                  <button type="button" className="home-pill" onClick={openSheet} aria-expanded="false">
+                    <svg width="12" height="14" viewBox="0 0 18 22" fill="none" aria-hidden="true">
+                      <path
+                        d="M4.5 9V6a4.5 4.5 0 0 1 9 0v3"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                      <rect x="1.5" y="9" width="15" height="11.5" rx="3" fill="currentColor" />
+                    </svg>
+                    {title}
+                  </button>
+                ) : mode === "signin" ? (
+                  googleButton
+                ) : (
+                  <span className="home-pill home-pill--status">{title}</span>
+                )}
+                {hint && (!typing || message || waiting) && <span className="lock-hint lock-hint--pad">{hint}</span>}
+              </div>
+            ) : (
+              <div className={`home-pad home-sheet ${sheet === "closing" ? "closing" : ""}`}>
+                <button
+                  type="button"
+                  className="home-sheet-handle"
+                  aria-label="Hide keypad"
+                  onClick={closeSheet}
+                  onPointerDown={(e) => (swipeFrom.current = e.clientY)}
+                  onPointerUp={(e) => {
+                    if (swipeFrom.current !== null && e.clientY - swipeFrom.current > 40) closeSheet();
+                    swipeFrom.current = null;
+                  }}
+                >
+                  <i />
+                </button>
+                <span className="lock-title" aria-live="polite">
+                  {title}
+                </span>
                 <div
                   className="lock-dots"
                   data-shake={shaking}
@@ -553,16 +617,10 @@ function LockScreen({ account, onUnlock }: { account: Account; onUnlock: () => v
                     </svg>
                   </button>
                 </div>
-              </>
-            ) : (
-              <div className="lock-pad-message">
-                <MonoLogo className="mono-logo lock-pad-logo" />
-                <span className="lock-hint lock-hint--pad">{hint}</span>
-                {mode === "signin" && googleButton}
+                {accountLinks}
               </div>
             )}
-            {accountLinks}
-          </div>
+          </>
         )}
       </div>
     </div>

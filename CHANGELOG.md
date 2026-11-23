@@ -34,6 +34,7 @@ All notable changes to MonoChrome are recorded here. The format follows [Keep a 
 
 ### Changed
 
+- **Phones and tablets:** the lock screen no longer shows the keypad all the time. The 3D city fills the screen with an **Enter Passcode** pill, and the keypad slides up when you tap it. Tap the city, swipe down or press Esc to hide it. It also hides itself after 25 seconds without a tap.
 - New accounts start from a neutral **sample routine** (14 tasks and 2 vows that show off steps, a counter, bonus tasks and a timed lights-out). Personal routines live only in each user's account.
 - The help panel lists your own vows instead of fixed ones.
 - The lock screen's residents use their own fixed demo checklist instead of the user's routine.
