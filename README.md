@@ -35,7 +35,7 @@ Around them is a full city. It has a school, a library, an office tower, a café
 - **Click** a house or building to fly to it. Use **← Back to Rocky** or **R** to come home.
 - **Drag** to orbit, **scroll** or pinch to zoom, **right-drag** to pan, **Q / E** to rotate, **F** to follow.
 - **WASD** walks Rocky and **Space** jumps. He goes back to his routine after a few seconds.
-- On computers the passcode panel is Mac-style. Tablets and phones get an iPad- or iPhone-style keypad.
+- On computers the passcode panel is Mac-style. On phones and tablets the city gets the whole screen: tap **Enter Passcode** and an iPhone-style keypad slides up. Tap the city or swipe the handle down to hide it again.
 
 <p align="center"><img src="docs/screenshots/phone-lock.png" width="300" alt="The phone lock screen"></p>
 
