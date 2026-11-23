@@ -23,3 +23,8 @@ logs/
 
 # Firebase CLI cache
 .firebase/
+
+# Local AI-assistant skills installed by the Firebase CLI (not part of the app)
+.agents/
+.claude/
+skills-lock.json

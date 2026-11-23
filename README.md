@@ -8,6 +8,8 @@
 
 **Black-and-white world where discipline is the only colour.**
 
+**Live:** https://monochrome-y.web.app (install it on your phone; see [Install it as an app](#install-it-as-an-app))
+
 MonoChrome is a 3D habit tracker built to keep a daily routine honest. You don't tick boxes in a list: you commit to each task by holding a key, the day only moves forward in order, and a black-and-white world records every promise you keep or break.
 
 ![The lock screen: Rocky's house and his daily checklist](docs/screenshots/lock-home.png)
