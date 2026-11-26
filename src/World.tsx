@@ -1045,15 +1045,21 @@ export default function World(props: Props) {
       touchPoints.delete(event.pointerId);
       pinchSpan = 0;
     };
+    // A dialog over the world (calendar, settings) takes the wheel and keys; one that contains the
+    // world (the lock screen, where the ring is the wallpaper) doesn't.
+    const covered = () => {
+      const dialog = document.querySelector('[role="dialog"]');
+      return !!dialog && !dialog.contains(container);
+    };
     // Scroll wheel and trackpad pinch (which arrives as ctrl+wheel) zoom the camera.
     const onWheel = (event: WheelEvent) => {
-      if (document.querySelector('[role="dialog"]')) return;
+      if (covered()) return;
       event.preventDefault();
       const delta = THREE.MathUtils.clamp(event.deltaY, -120, 120);
       zoomBy(Math.exp(delta * (event.ctrlKey ? 0.012 : 0.0016)));
     };
     const onKey = (event: KeyboardEvent) => {
-      if (document.querySelector('[role="dialog"]') || event.metaKey || event.ctrlKey) return;
+      if (covered() || event.metaKey || event.ctrlKey) return;
       if (event.key === "+" || event.key === "=") zoomBy(0.8);
       else if (event.key === "-" || event.key === "_") zoomBy(1.25);
       else if (event.key === "0") resetView();

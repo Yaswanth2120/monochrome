@@ -3,38 +3,65 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { buildHouse, type House } from "./town/house";
 import { createKit } from "./town/kit";
-import { RESIDENTS, Resident, drawBoard } from "./town/residents";
+import type { TaskIcon } from "./routine";
+import { RESIDENTS, Resident, TASK_STATIONS, boardHeight, drawBoard, drawBoardData } from "./town/residents";
 import { HOUSE_SLOTS, buildTown, type BuildingInfo } from "./town/town";
+import type { ZoomControls } from "./World";
 
 /*
- * The lock screen's playground: a black and white neighbourhood. Six houses on one street,
- * everyone with the same 13 daily tasks. Rocky (yours) does them all; Ferris procrastinates,
- * Gollum scrolls, Lebowski sleeps, Flash starts everything and finishes nothing, Nina redoes the
- * first task forever. A checklist floats over every house. Around them: school, library, office,
- * café, hospital, police, fire station, grocery, gym and a park, with traffic on the roads.
+ * Home: a black and white neighbourhood. You live in the white house: your name is on the sign,
+ * your routine is on the board above it (one progress round per task), and your figure acts out
+ * each task as you commit it, then waits at the spot of the next one. Your five neighbours live
+ * the same day badly: Ferris procrastinates, Gollum scrolls, Lebowski sleeps, Flash starts
+ * everything and finishes nothing, Nina redoes the first task forever. Around them: a whole city
+ * with traffic and people on the pavements.
  *
- * You control Rocky (click/tap to send him, WASD to walk, Space to jump, tap him to wave), can
- * click any house or building to fly there, and have a full 3D camera.
+ * You can also play: click/tap your plot to send your figure, WASD to walk, Space to jump, tap
+ * the figure to wave; click any house or building to fly there. Full 3D camera.
  */
 
-export type SceneSignals = { pulse: number; error: number; success: boolean };
 type Caption = { tag: string; text: string; user: boolean };
 
-export default function LockScene({ signals, lowDetail = false }: { signals: SceneSignals; lowDetail?: boolean }) {
+export type YouTask = { id: string; title: string; icon: TaskIcon; progress: number; optional: boolean };
+export type You = {
+  name: string;
+  title: string;
+  level: number;
+  tasks: YouTask[];
+  kept: number;
+  total: number;
+  /** The task on deck: the figure waits at its spot. */
+  next: number;
+  complete: boolean;
+  /** Bumped every time something is done (commit, a step ticked, a count added) to act it out. */
+  action: { seq: number; index: number };
+};
+
+type Props = {
+  you: You;
+  /** Stepped into the day (dock showing): close on the house. Otherwise: a wide view of the city. */
+  immersive: boolean;
+  lowDetail?: boolean;
+  onZoomReady?: (zoom: ZoomControls) => void;
+};
+
+const OVERVIEW = { target: new THREE.Vector3(0, 1.2, 8), distance: 64 };
+/** What the figure is shown doing, from a task title ("Brush your teeth." → "Brush your teeth"). */
+const doing = (title: string) => title.replace(/\.$/, "");
+
+export default function CityScene({ you, immersive, lowDetail = false, onZoomReady }: Props) {
   const host = useRef<HTMLDivElement>(null);
-  const signalsRef = useRef(signals);
+  const youRef = useRef(you);
+  const immersiveRef = useRef(immersive);
+  const zoomReadyRef = useRef(onZoomReady);
   useLayoutEffect(() => {
-    signalsRef.current = signals;
+    youRef.current = you;
+    immersiveRef.current = immersive;
+    zoomReadyRef.current = onZoomReady;
   });
-  const [caption, setCaption] = useState<Caption>({ tag: "ROCKY · DISCIPLINED", text: "Waking up", user: false });
-  const [following, setFollowing] = useState(false);
+  const [caption, setCaption] = useState<Caption>({ tag: you.name.toUpperCase(), text: "Waking up", user: false });
   const [away, setAway] = useState(false);
-  const cameraRef = useRef<{
-    zoom: (amount: number) => void;
-    orbit: (angle: number) => void;
-    toggleFollow: () => boolean;
-    reset: () => void;
-  } | null>(null);
+  const cameraRef = useRef<{ reset: () => void } | null>(null);
 
   useEffect(() => {
     if (!host.current) return;
@@ -61,11 +88,14 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
     const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 600);
     const HOME_TARGET = new THREE.Vector3(0, 1.2, 0.6);
     const HOME_OFFSET = new THREE.Vector3(12, 13.5, 19);
-    camera.position.copy(HOME_TARGET).add(HOME_OFFSET);
+    // Start where the page starts: close on the house when stepped in, otherwise the whole city.
+    const startTarget = immersiveRef.current ? HOME_TARGET : OVERVIEW.target;
+    const startDistance = immersiveRef.current ? HOME_OFFSET.length() : OVERVIEW.distance;
+    camera.position.copy(startTarget).add(HOME_OFFSET.clone().setLength(startDistance));
 
     // ---------- Camera: orbit, zoom, pan, follow, fly-to ----------
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.copy(HOME_TARGET);
+    controls.target.copy(startTarget);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.enablePan = true;
@@ -101,12 +131,13 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
     const town = buildTown(kit, scene);
     const houses: House[] = RESIDENTS.map((def, index) => {
       const slot = HOUSE_SLOTS[index];
+      const me = index === 0 ? youRef.current : null;
       const house = buildHouse(kit, {
         index,
         tell: def.tell,
-        title: def.title,
-        level: def.level,
-        name: def.name,
+        title: me?.title ?? def.title,
+        level: me?.level ?? def.level,
+        name: me?.name ?? def.name,
         ...slot,
       });
       scene.add(house.group);
@@ -114,7 +145,9 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
       return house;
     });
     const residents = RESIDENTS.map((def, index) => new Resident(def, index, houses[index].group, scene));
+    // Your figure (the white one) follows your real day, never the demo script.
     const rocky = residents[0];
+    rocky.scripted = false;
     const rockyHouse = houses[0];
 
     // A checklist board floating over every house.
@@ -128,12 +161,52 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
       sprite.scale.set(2.3, 4.0, 1);
       // Behind the house, above the back wall, so it never hides the rooms.
       sprite.position.copy(houses[index].group.localToWorld(new THREE.Vector3(-1.5, 3.6, -5.4)));
+      sprite.userData.base = sprite.position.y - 2;
       sprite.userData.house = index;
       scene.add(sprite);
       return { canvas, texture, sprite, resident };
     });
+    // Your board and sign are drawn from your day; they're redrawn whenever it changes.
+    let youDrawn = "";
+    let signDrawn = "";
+    const refreshYou = (force = false) => {
+      const y = youRef.current;
+      const rows = y.tasks.map((task) => ({ title: task.title, progress: task.progress, optional: task.optional }));
+      const key = JSON.stringify([y.name, y.title, y.level, rows, y.kept, y.total]);
+      if (key !== youDrawn || force) {
+        youDrawn = key;
+        const board = boards[0];
+        const height = boardHeight(rows.length);
+        if (board.canvas.height !== height) {
+          board.canvas.height = height;
+          board.sprite.scale.y = (height * 2.3) / 320;
+          board.sprite.position.y = board.sprite.userData.base + board.sprite.scale.y / 2;
+        }
+        drawBoardData(board.canvas, {
+          name: y.name,
+          title: y.title,
+          level: y.level,
+          rows,
+          kept: y.kept,
+          total: y.total,
+          hero: true,
+        });
+        board.texture.dispose();
+        board.texture = new THREE.CanvasTexture(board.canvas);
+        board.texture.colorSpace = THREE.SRGBColorSpace;
+        board.sprite.material.map = board.texture;
+        board.sprite.material.needsUpdate = true;
+      }
+      const sign = JSON.stringify([y.title, y.level, y.name]);
+      if (sign !== signDrawn || force) {
+        signDrawn = sign;
+        rockyHouse.setSign(y.title, y.level, y.name);
+      }
+    };
     const refreshBoards = () => {
+      refreshYou();
       for (const board of boards) {
+        if (board.resident === rocky) continue;
         if (!board.resident.checklistDirty) continue;
         board.resident.checklistDirty = false;
         drawBoard(board.canvas, board.resident);
@@ -142,7 +215,10 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
     };
     refreshBoards();
     // Redraw once the web fonts arrive, so the boards use the right typeface.
-    void document.fonts?.ready.then(() => residents.forEach((r) => (r.checklistDirty = true)));
+    void document.fonts?.ready.then(() => {
+      residents.forEach((r) => (r.checklistDirty = true));
+      if (!disposed) refreshYou(true);
+    });
 
     // Stars around the diorama.
     const starPositions = new Float32Array(900 * 3);
@@ -240,31 +316,28 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
     };
     const goHome = () => {
       cam.follow = false;
-      setFollowing(false);
       visitHouse(0);
-      cam.fly = { target: HOME_TARGET.clone(), distance: HOME_OFFSET.length() };
+      cam.fly = immersiveRef.current
+        ? { target: HOME_TARGET.clone(), distance: HOME_OFFSET.length() }
+        : { target: OVERVIEW.target.clone(), distance: OVERVIEW.distance };
     };
-
-    cameraRef.current = {
-      zoom: (amount) => (cam.zoom += amount),
-      orbit: (angle) => (cam.orbit += angle),
-      toggleFollow: () => {
-        cam.follow = !cam.follow;
-        if (cam.follow) {
-          cam.fly = null;
-          if (watching === null) visitHouse(0);
-        }
-        setFollowing(cam.follow);
-        return cam.follow;
-      },
-      reset: goHome,
+    const toggleFollow = () => {
+      cam.follow = !cam.follow;
+      if (cam.follow) {
+        cam.fly = null;
+        if (watching === null) visitHouse(0);
+      }
     };
+    cameraRef.current = { reset: goHome };
+    zoomReadyRef.current?.({ zoomBy: (factor) => (cam.zoom += Math.log(factor)), reset: goHome });
 
     // ---------- Playing with Rocky ----------
     let userUntil = 0;
+    /** What the figure is doing on its own: acting out a task, waiting at the next one, or asleep. */
+    let auto = "";
     const takeControl = () => {
-      rocky.scripted = false;
       userUntil = performance.now() + 7000;
+      auto = "";
       if (watching !== 0) visitHouse(0);
     };
     const raycaster = new THREE.Raycaster();
@@ -305,20 +378,20 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
     canvas.addEventListener("pointerup", onUp);
 
     const keys = new Set<string>();
+    // The app owns E (commit), H (dock), the arrows (tasks), C, L, M and ",". The city takes the rest.
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const k = e.key.toLowerCase();
-      // Camera keys: + / - zoom, Q / E orbit, F follow, R or H back home.
+      // Camera keys: + / - zoom, F follow, R or 0 back home.
       if (k === "+" || k === "=") return void (cam.zoom -= 0.35);
       if (k === "-" || k === "_") return void (cam.zoom += 0.35);
-      if (k === "q") return void (cam.orbit -= 0.35);
-      if (k === "e") return void (cam.orbit += 0.35);
-      if (k === "f" && !e.repeat) return void cameraRef.current?.toggleFollow();
-      if ((k === "r" || k === "h") && !e.repeat) return goHome();
-      if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(k)) {
+      if (k === "f" && !e.repeat) return toggleFollow();
+      if ((k === "r" || k === "0") && !e.repeat) return goHome();
+      if (["w", "a", "s", "d"].includes(k)) {
         keys.add(k);
         takeControl();
-        if (k.startsWith("arrow")) e.preventDefault();
       } else if (k === " " && !(e.target instanceof HTMLButtonElement)) {
         e.preventDefault();
         takeControl();
@@ -342,9 +415,9 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
     observer.observe(container);
     resize();
 
-    let seenPulse = signalsRef.current.pulse;
-    let seenError = signalsRef.current.error;
-    let cheered = false;
+    let seenAction = youRef.current.action.seq;
+    let wasComplete = youRef.current.complete;
+    let seenImmersive = immersiveRef.current;
     let planeTimer = 0;
     let last = performance.now();
     const animate = (now: number) => {
@@ -353,22 +426,12 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       const t = now / 1000;
-      const s = signalsRef.current;
+      const y = youRef.current;
 
-      // Rocky reacts to the passcode.
-      if (s.pulse !== seenPulse) {
-        seenPulse = s.pulse;
-        rocky.jump(2.6);
-      }
-      if (s.error !== seenError) {
-        seenError = s.error;
-        rocky.setEmote("shrug", 1.6);
-        rocky.caption = "Wrong code. He shrugs.";
-      }
-      if (s.success && !cheered) {
-        cheered = true;
-        rocky.setEmote("cheer", 3);
-        rocky.caption = "Welcome back.";
+      // Stepping into the day flies to the house; stepping out shows the whole city.
+      if (immersiveRef.current !== seenImmersive) {
+        seenImmersive = immersiveRef.current;
+        goHome();
       }
 
       // Steering Rocky, relative to the camera.
@@ -378,16 +441,64 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
         const forward = new THREE.Vector3().subVectors(controls.target, camera.position).setY(0).normalize();
         const right = new THREE.Vector3(-forward.z, 0, forward.x);
         const dir = new THREE.Vector3();
-        if (keys.has("w") || keys.has("arrowup")) dir.add(forward);
-        if (keys.has("s") || keys.has("arrowdown")) dir.sub(forward);
-        if (keys.has("d") || keys.has("arrowright")) dir.add(right);
-        if (keys.has("a") || keys.has("arrowleft")) dir.sub(right);
+        if (keys.has("w")) dir.add(forward);
+        if (keys.has("s")) dir.sub(forward);
+        if (keys.has("d")) dir.add(right);
+        if (keys.has("a")) dir.sub(right);
         if (dir.lengthSq() > 0) {
           rocky.steer(dir.normalize(), dt);
           steering = true;
         }
       }
-      if (!rocky.scripted && now > userUntil && !rocky.goal && !rocky.emote) rocky.scripted = true;
+
+      // Your figure follows your day: act out what you just did, then wait at the next task's spot,
+      // or go to bed once every promise is kept. A cheer when the day is sealed.
+      if (y.action.seq !== seenAction) {
+        seenAction = y.action.seq;
+        const task = y.tasks[y.action.index];
+        if (task) {
+          const spot = TASK_STATIONS[task.icon];
+          userUntil = 0;
+          auto = "act";
+          rocky.goToStation(
+            spot.station,
+            { at: spot.station, pose: spot.pose, duration: 4.5, caption: doing(task.title) },
+            1.5,
+          );
+        }
+      }
+      if (y.complete && !wasComplete && now > userUntil) {
+        rocky.setEmote("cheer", 3);
+        rocky.caption = "Every promise kept.";
+        auto = "cheer";
+      }
+      wasComplete = y.complete;
+      if (now > userUntil && !rocky.goal && !rocky.emote) {
+        if (auto === "act" || auto === "cheer") {
+          if (!rocky.activity) auto = "";
+        }
+        const nextTask = y.tasks[y.next];
+        const want = y.complete ? "bed" : nextTask ? `next:${nextTask.id}:${nextTask.icon}` : "";
+        if (auto !== "act" && auto !== "cheer" && want && want !== auto) {
+          auto = want;
+          if (y.complete) {
+            rocky.goToStation("bed", {
+              at: "bed",
+              pose: "sleep",
+              duration: 1e9,
+              caption: "Every promise kept. Resting.",
+            });
+          } else if (nextTask) {
+            const spot = TASK_STATIONS[nextTask.icon];
+            rocky.goToStation(spot.station, {
+              at: spot.station,
+              pose: "idle",
+              duration: 1e9,
+              caption: `Next up: ${doing(nextTask.title).toLowerCase()}`,
+            });
+          }
+        }
+      }
 
       residents.forEach((r) => r.update(dt, t, r === rocky && steering));
       refreshBoards();
@@ -463,7 +574,7 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
       if (watchingBuilding) setText({ tag: watchingBuilding.name, text: watchingBuilding.blurb, user: false });
       else if (watching !== null) {
         const r = residents[watching];
-        const playing = r === rocky && !rocky.scripted;
+        const playing = r === rocky && now < userUntil;
         let text = r.caption || "…";
         if (playing) {
           text = steering
@@ -476,10 +587,19 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
                   ? "Walking where you sent him"
                   : "Waiting for you";
         } else if (r.moving && r.goal?.step) {
-          text = `On the way: ${r.goal.step.caption.replace(/^[^A-Za-z“*]+/, "").toLowerCase()}`;
+          const next = r.goal.step.caption;
+          // Walking over to wait at the next task already reads "Next up: …".
+          text =
+            r === rocky && next.startsWith("Next up")
+              ? next
+              : `On the way: ${next.replace(/^[^A-Za-z“*]+/, "").toLowerCase()}`;
         }
         setText({
-          tag: playing ? "YOU’RE PLAYING" : `${r.def.name.toUpperCase()} · ${r.def.title} · ${r.score}/13`,
+          tag: playing
+            ? "YOU’RE PLAYING"
+            : r === rocky
+              ? `${y.name.toUpperCase()} · ${y.title} · ${y.kept}/${y.total}`
+              : `${r.def.name.toUpperCase()} · ${r.def.title} · ${r.score}/13`,
           text,
           user: playing,
         });
@@ -552,68 +672,16 @@ export default function LockScene({ signals, lowDetail = false }: { signals: Sce
   }, [lowDetail]);
 
   return (
-    <div className="home-scene" ref={host}>
+    <div className="city-host" ref={host}>
       <div className={`home-caption ${caption.user ? "user" : ""}`} aria-live="polite">
         <span>{caption.tag}</span>
         {caption.text}
       </div>
       {away && (
         <button className="home-back" onClick={() => cameraRef.current?.reset()}>
-          ← Back to Rocky
+          ← Back home
         </button>
       )}
-      <div className="home-camera" role="group" aria-label="Camera">
-        <button aria-label="Zoom in (+)" title="Zoom in (+)" onClick={() => cameraRef.current?.zoom(-0.45)}>
-          +
-        </button>
-        <button aria-label="Zoom out (−)" title="Zoom out (−)" onClick={() => cameraRef.current?.zoom(0.45)}>
-          −
-        </button>
-        <button aria-label="Rotate left (Q)" title="Rotate left (Q)" onClick={() => cameraRef.current?.orbit(-0.6)}>
-          ⟲
-        </button>
-        <button aria-label="Rotate right (E)" title="Rotate right (E)" onClick={() => cameraRef.current?.orbit(0.6)}>
-          ⟳
-        </button>
-        <button
-          aria-label="Follow (F)"
-          title="Follow (F)"
-          aria-pressed={following}
-          className={following ? "on" : ""}
-          onClick={() => cameraRef.current?.toggleFollow()}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            aria-hidden="true"
-          >
-            <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-        </button>
-        <button
-          aria-label="Back to Rocky's house (R)"
-          title="Back to Rocky's house (R)"
-          onClick={() => cameraRef.current?.reset()}
-        >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M3 11 12 4l9 7M5 10v10h14V10" />
-          </svg>
-        </button>
-      </div>
     </div>
   );
 }

@@ -12,45 +12,56 @@
 
 MonoChrome is a 3D habit tracker built to keep a daily routine honest. You don't tick boxes in a list: you commit to each task by holding a key, the day only moves forward in order, and a black-and-white world records every promise you keep or break.
 
-![The lock screen: Rocky's house and his daily checklist](docs/screenshots/lock-home.png)
+![Home: your house, your checklist board and the task dock](docs/screenshots/home.png)
 
-## The lock screen: a living neighbourhood
+## Home: your house in a living city
 
-The site opens on a lock screen that is also a small 3D city. **Rocky**, the disciplined one, lives in the middle of it and works through the whole routine every day while his checklist fills up to 13/13. His five neighbours live the same day badly:
+After you unlock, you're home: a black-and-white 3D city where **you live in the white house**.
 
-| House sign             | Resident | How they spend the day                                        |
-| ---------------------- | -------- | ------------------------------------------------------------- |
-| DISCIPLINED · LVL 10   | Rocky    | Does every task in order, catches the bus, lights out on time |
-| PROCRASTINATOR · LVL 3 | Ferris   | Walks up to a task, turns back to the sofa, panics at night   |
-| DISTRACTED · LVL 2     | Gollum   | Starts something, then the phone buzzes                       |
-| LAZY · LVL 1           | Lebowski | Snooze, fridge, couch, bed                                    |
-| SCATTERED · LVL 4      | Flash    | Starts everything at triple speed and finishes nothing        |
-| PERFECTIONIST · LVL 5  | Nina     | Ticks a box, decides it wasn't perfect, unticks it            |
+- **Your sign:** your name and a discipline level. The level climbs one step for every three days of streak: STARTING → BUILDING → STEADY → CONSISTENT → DISCIPLINED → UNSTOPPABLE.
+- **Your board:** your routine floats above the house, with a **progress round** per task. Each round fills as you tick steps or count up, and becomes a solid disc when the task is done.
+- **Your figure acts out your day.** Commit a task and it walks to the right spot to do it: the sink to brush, the stove to cook, the desk to study, the mailbox to send things off, the bus stop to head to work. Then it waits at the spot of your next task. Seal the day and it cheers and goes to bed.
+
+Your five neighbours live the same day badly:
+
+| House sign             | Resident | How they spend the day                                      |
+| ---------------------- | -------- | ----------------------------------------------------------- |
+| PROCRASTINATOR · LVL 3 | Ferris   | Walks up to a task, turns back to the sofa, panics at night |
+| DISTRACTED · LVL 2     | Gollum   | Starts something, then the phone buzzes                     |
+| LAZY · LVL 1           | Lebowski | Snooze, fridge, couch, bed                                  |
+| SCATTERED · LVL 4      | Flash    | Starts everything at triple speed and finishes nothing      |
+| PERFECTIONIST · LVL 5  | Nina     | Ticks a box, decides it wasn't perfect, unticks it          |
 
 Around them is a full city. It has a school, a library, an office tower, a café, a hospital, police and fire stations, a grocery, a gym and a park. Downtown has City Hall, a Bank, a Mall, a Cinema, a Hotel and the Skyline Tower, and the west side has the Maple Row suburb and a stadium. About 50 vehicles drive the roads, including buses, police cars and ambulances with blinking lights, and pedestrians walk the pavements.
 
 ![The whole city](docs/screenshots/city.png)
 ![Downtown](docs/screenshots/downtown.png)
 
-- **Click** a house or building to fly to it. Use **← Back to Rocky** or **R** to come home.
-- **Drag** to orbit, **scroll** or pinch to zoom, **right-drag** to pan, **Q / E** to rotate, **F** to follow.
-- **WASD** walks Rocky and **Space** jumps. He goes back to his routine after a few seconds.
-- On computers the passcode panel is Mac-style. On phones and tablets the city gets the whole screen: tap **Enter Passcode** and an iPhone-style keypad slides up. Tap the city or swipe the handle down to hide it again.
-
-<p align="center"><img src="docs/screenshots/phone-lock.png" width="300" alt="The phone lock screen"></p>
-
-## The routine world
-
-After unlocking, the day is a ring of islands, one per task in your routine, in a monochrome solar-system world.
-
-![The routine ring](docs/screenshots/world.png)
+### The day
 
 - **Hold to commit.** Hold **E** (or the button) to complete a task. Tasks unlock strictly in order, so you can't skip ahead.
-- **Steps, counters and bonuses.** A task can be a list of steps (like breakfast) or a counter with a goal and a stretch (like "reach out to 3–5 people"). Bonus tasks are optional and shine brighter.
+- **Steps, counters and bonuses.** A task can be a list of steps (like breakfast) or a counter with a goal and a stretch (like "reach out to 3–5 people"). Bonus tasks are optional and count for more.
 - **Time windows.** A task can have one, like lights out (9–11:30 PM in the sample routine). It can only be committed inside the window.
 - **Vows.** Promises like "no phone in bed" are held all day and sealed at night. An honest **I slipped** button records a broken vow.
 - The day rolls over at 4 AM.
-- Sound effects are generated with Web Audio. **M** mutes them, **H** hides the task dock, **L** locks the screen, and the zoom controls work anywhere in the world.
+
+### Controls
+
+- **← →** step through your tasks. **W A S D** walk your figure and **Space** jumps. Click your plot to send your figure there.
+- **Click** any house or building to fly to it. **← Back home**, **R** or **0** brings you back.
+- **Drag** to orbit, **scroll** or pinch to zoom, **F** to follow.
+- **H** hides the task dock, **M** mutes the Web Audio sound effects, **C** opens the calendar, **,** opens Settings, **L** locks.
+
+## The lock screen: a demo ring
+
+The lock screen's wallpaper is a ring of floating islands around a dark core, in a monochrome solar-system world. A **demo day** plays on it: the figure walks the ring and lights the islands one by one. It uses the sample routine, never yours, so a locked screen shows nothing private. Unlocking lights the whole ring at once.
+
+- On computers the passcode panel is Mac-style. Drag to look around and scroll to zoom.
+- On phones and tablets the ring gets the whole screen. Tap **Enter Passcode** and an iPhone-style keypad slides up; tap the ring or swipe the handle down to hide it again.
+
+![The lock screen: a demo day on the ring](docs/screenshots/lock.png)
+
+<p align="center"><img src="docs/screenshots/phone-lock.png" width="300" alt="The phone lock screen"></p>
 
 ## Settings: make the routine yours
 
@@ -132,10 +143,11 @@ pnpm dev:emulators    # the app, signed in against the emulators
 ```
 src/
   App.tsx           routine dock, hold-to-commit, keyboard controls
-  World.tsx         the routine ring world
+  World.tsx         the ring world (lock-screen wallpaper)
   Calendar.tsx      streak calendar and dashboard
   LockScreen.tsx    passcode gate (desktop panel / touch keypad)
-  LockScene.tsx     the 3D city scene and camera
+  LockRing.tsx      the lock screen's demo ring
+  CityScene.tsx     Home: the 3D city, your house, board and figure
   routine.ts        routine model, default routine, timing rules, scoring, validation
   Settings.tsx      settings page and routine editor
   lib/              Firebase client, account, passcodes, routine and history sync

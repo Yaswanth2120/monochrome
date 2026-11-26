@@ -19,8 +19,9 @@ service cloud.firestore {
       allow delete: if isOwner(uid);
 
       function validProfile(data) {
-        return data.keys().hasOnly(["name", "passcode", "updatedAt"])
+        return data.keys().hasOnly(["name", "passcode", "houseName", "updatedAt"])
           && (!("name" in data) || (data.name is string && data.name.size() <= 120))
+          && (!("houseName" in data) || (data.houseName is string && data.houseName.size() <= 16))
           && (!("passcode" in data) || validPasscode(data.passcode));
       }
       function validPasscode(p) {
