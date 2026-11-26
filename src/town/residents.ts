@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { type Pose, cheerPose, createFigure, idlePose, walkPose } from "../figure";
+import type { TaskIcon } from "../routine";
 import { DOOR, GATE, PLOT, STATIONS, type StationDef, type Tell } from "./house";
 
 /**
@@ -553,13 +554,63 @@ export class Resident {
   }
 }
 
-/** Draw a resident's checklist board: name, discipline level, the 13 tasks and a score. */
-export function drawBoard(canvas: HTMLCanvasElement, resident: Resident) {
+/**
+ * A progress round instead of a checkbox: an empty ring, an arc that fills with partial progress
+ * (steps ticked, a counter climbing), and a solid disc when the task is done.
+ */
+function drawRound(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  value: number,
+  ink: string,
+  faint: string,
+) {
+  ctx.lineWidth = 2.4;
+  ctx.strokeStyle = faint;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.stroke();
+  if (value >= 1) {
+    ctx.fillStyle = ink;
+    ctx.beginPath();
+    ctx.arc(x, y, r + 1.2, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (value > 0) {
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 3.4;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * value);
+    ctx.stroke();
+    ctx.lineCap = "butt";
+  }
+}
+
+export type BoardRow = { title: string; progress: number; optional?: boolean };
+export type BoardData = {
+  name: string;
+  title: string;
+  level: number;
+  rows: BoardRow[];
+  kept: number;
+  total: number;
+  hero: boolean;
+};
+
+const ROW = 29;
+const BOARD_TOP = 112;
+/** Canvas height for a board with this many rows. */
+export const boardHeight = (rows: number) => BOARD_TOP + rows * ROW + 70;
+
+/** Draw a checklist board: name, discipline level, one progress round per task, and a score. */
+export function drawBoardData(canvas: HTMLCanvasElement, data: BoardData) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const w = canvas.width;
   const h = canvas.height;
-  const hero = resident.def.tell === "rocky";
+  const { hero } = data;
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = hero ? "#f2f2f2" : "#0b0b0d";
   ctx.strokeStyle = hero ? "#f2f2f2" : "#6a6a72";
@@ -570,50 +621,64 @@ export function drawBoard(canvas: HTMLCanvasElement, resident: Resident) {
   ctx.stroke();
   const ink = hero ? "#050506" : "#f2f2f2";
   const soft = hero ? "#55555c" : "#8a8a92";
+  const faint = hero ? "#c4c4ca" : "#3a3a42";
   ctx.fillStyle = ink;
   ctx.textAlign = "left";
   ctx.font = "800 34px Manrope, 'DM Sans', sans-serif";
-  ctx.fillText(resident.def.name, 22, 52);
+  ctx.fillText(data.name, 22, 52, w - 44);
   ctx.font = "500 15px 'IBM Plex Mono', monospace";
   ctx.fillStyle = soft;
-  ctx.fillText(`${resident.def.title} · LVL ${resident.def.level}`, 22, 78);
+  ctx.fillText(`${data.title} · LVL ${data.level}`, 22, 78, w - 44);
   ctx.fillRect(22, 92, w - 44, 2);
-  BOARD_TASKS.forEach((task, i) => {
-    const y = 112 + i * 29;
-    const value = resident.checklist.get(task.id) ?? 0;
-    ctx.strokeStyle = ink;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(24, y, 18, 18);
-    if (value === 1) {
-      ctx.fillStyle = ink;
-      ctx.fillRect(24, y, 18, 18);
-      ctx.strokeStyle = hero ? "#f2f2f2" : "#0b0b0d";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(28, y + 9);
-      ctx.lineTo(32, y + 14);
-      ctx.lineTo(39, y + 4);
-      ctx.stroke();
-    } else if (value === 0.5) {
-      ctx.fillStyle = ink;
-      ctx.fillRect(24, y, 9, 18);
-    }
-    ctx.fillStyle = value === 1 ? ink : soft;
-    ctx.font = `${value === 1 ? 600 : 400} 17px 'DM Sans', sans-serif`;
-    ctx.fillText(task.title.replace(/\.$/, ""), 54, y + 15);
+  data.rows.forEach((row, i) => {
+    const y = BOARD_TOP + i * ROW;
+    drawRound(ctx, 33, y + 9, 8, row.progress, ink, faint);
+    const done = row.progress >= 1;
+    ctx.fillStyle = done ? ink : soft;
+    ctx.font = `${done ? 600 : 400} 17px 'DM Sans', sans-serif`;
+    const label = row.title.replace(/\.$/, "") + (row.optional ? " ·" : "");
+    ctx.fillText(label, 54, y + 15, w - 76);
   });
-  const done = resident.score;
-  const y = 112 + BOARD_TASKS.length * 29 + 14;
+  const y = BOARD_TOP + data.rows.length * ROW + 14;
   ctx.fillStyle = ink;
   ctx.fillRect(22, y - 6, w - 44, 2);
   ctx.font = "800 40px Manrope, 'DM Sans', sans-serif";
-  ctx.fillText(`${done}/${BOARD_TASKS.length}`, 22, y + 40);
+  ctx.fillText(`${data.kept}/${data.total}`, 22, y + 40);
   ctx.font = "500 14px 'IBM Plex Mono', monospace";
   ctx.fillStyle = soft;
   ctx.textAlign = "right";
   ctx.fillText(
-    done === BOARD_TASKS.length ? "EVERY PROMISE KEPT" : done === 0 ? "NOTHING DONE" : "PROMISES KEPT",
+    data.total && data.kept >= data.total ? "EVERY PROMISE KEPT" : data.kept === 0 ? "NOTHING DONE" : "PROMISES KEPT",
     w - 22,
     y + 34,
   );
 }
+
+/** A demo resident's board: the 13 demo tasks and their checklist. */
+export function drawBoard(canvas: HTMLCanvasElement, resident: Resident) {
+  drawBoardData(canvas, {
+    name: resident.def.name,
+    title: resident.def.title,
+    level: resident.def.level,
+    rows: BOARD_TASKS.map((task) => ({ title: task.title, progress: resident.checklist.get(task.id) ?? 0 })),
+    kept: resident.score,
+    total: BOARD_TASKS.length,
+    hero: resident.def.tell === "rocky",
+  });
+}
+
+/** Where in the house each kind of task happens, and what the figure does there. */
+export const TASK_STATIONS: Record<TaskIcon, { station: string; pose: ActionPose }> = {
+  brush: { station: "sink", pose: "brush" },
+  pan: { station: "stove", pose: "cook" },
+  drop: { station: "tub", pose: "bath" },
+  egg: { station: "table", pose: "eat" },
+  bowl: { station: "table", pose: "eat" },
+  plate: { station: "kitchen-sink", pose: "dishes" },
+  book: { station: "desk", pose: "type" },
+  chip: { station: "desk", pose: "type" },
+  cube: { station: "desk", pose: "type" },
+  case: { station: "bus", pose: "wait" },
+  plane: { station: "mailbox", pose: "mail" },
+  moon: { station: "bed", pose: "sleep" },
+};

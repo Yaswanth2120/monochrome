@@ -41,6 +41,8 @@ export type House = {
   interactive: THREE.Object3D[];
   lampShade: THREE.Mesh;
   flag: THREE.Mesh;
+  /** Redraw the sign at the front (the hero's house shows the signed-in user's name and level). */
+  setSign: (title: string, level: number, name: string) => void;
 };
 
 export function buildHouse(
@@ -184,12 +186,22 @@ export function buildHouse(
   const signGroup = new THREE.Group();
   signGroup.position.set(-2.6, 0, 6.1);
   [-0.85, 0.85].forEach((dx) => box(0.07, 1.3, 0.07, m.grey, dx, 0, 0, signGroup, null));
-  kit.sign(
-    [
-      { text: options.title, size: 30, weight: 800 },
-      { text: `DISCIPLINE · LVL ${options.level}`, size: 16, mono: true, weight: 500 },
-      { text: options.name.toUpperCase(), size: 16, mono: true, weight: 500, color: "#9a9aa0" },
-    ],
+  const signLines = (title: string, level: number, name: string) =>
+    rocky
+      ? [
+          { text: title, size: 30, weight: 800, color: "#050506" },
+          { text: `DISCIPLINE · LVL ${level}`, size: 16, mono: true, weight: 500, color: "#050506" },
+          { text: name.toUpperCase(), size: 16, mono: true, weight: 500, color: "#55555c" },
+        ]
+      : [
+          { text: title, size: 30, weight: 800 },
+          { text: `DISCIPLINE · LVL ${level}`, size: 16, mono: true, weight: 500 },
+          { text: name.toUpperCase(), size: 16, mono: true, weight: 500, color: "#9a9aa0" },
+        ];
+  // The hero's sign is inverted: white panel, dark text.
+  const signStyle = { background: rocky ? "#f2f2f2" : "#050506", border: rocky ? null : "#f2f2f2" };
+  const signMesh = kit.sign(
+    signLines(options.title, options.level, options.name),
     2.2,
     0.95,
     signGroup,
@@ -197,23 +209,14 @@ export function buildHouse(
     1.55,
     0.05,
     0,
-    { background: rocky ? "#f2f2f2" : "#050506", border: rocky ? null : "#f2f2f2" },
+    signStyle,
   );
-  if (rocky) {
-    // Rocky's sign is inverted: white panel, dark text.
-    const mesh = signGroup.children[signGroup.children.length - 1] as THREE.Mesh;
-    const material = mesh.material as THREE.MeshBasicMaterial;
-    material.map = kit.textTexture(
-      [
-        { text: options.title, size: 30, weight: 800, color: "#050506" },
-        { text: `DISCIPLINE · LVL ${options.level}`, size: 16, mono: true, weight: 500, color: "#050506" },
-        { text: options.name.toUpperCase(), size: 16, mono: true, weight: 500, color: "#55555c" },
-      ],
-      282,
-      122,
-      { background: "#f2f2f2", border: null },
-    );
-  }
+  const setSign = (title: string, level: number, name: string) => {
+    const material = signMesh.material as THREE.MeshBasicMaterial;
+    material.map?.dispose();
+    material.map = kit.textTexture(signLines(title, level, name), 282, 122, signStyle);
+    material.needsUpdate = true;
+  };
   group.add(signGroup);
 
   // Each resident's tell.
@@ -281,5 +284,5 @@ export function buildHouse(
 
   // Tag everything with the house index so clicking anywhere on the plot can visit it.
   group.traverse((child) => (child.userData.house = options.index));
-  return { group, interactive, lampShade, flag };
+  return { group, interactive, lampShade, flag, setSign };
 }

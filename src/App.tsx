@@ -1,16 +1,18 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Calendar from "./Calendar";
+import CityScene, { type You } from "./CityScene";
 import { MonoLogo } from "./Logo";
 import Settings from "./Settings";
 import { useAccountContext } from "./lib/account";
 import { useHistory } from "./lib/useHistory";
 import { type Pending, useRoutine } from "./lib/useRoutine";
-import { LOCK_EVENT } from "./LockScreen";
+import { LOCK_EVENT, detectDevice } from "./LockScreen";
 import { isMuted, onMuteChange, setMuted, sfx } from "./sound";
-import World, { type VowState, type WorldTask, type ZoomControls } from "./World";
+import type { VowState, ZoomControls } from "./World";
 import {
   type DayRecord,
   type Routine,
+  type Task,
   type Vow,
   dayComplete,
   dayKey,
@@ -34,6 +36,65 @@ const cheers = [
   "Done. Not perfect, done.",
 ];
 const pad = (n: number) => String(n).padStart(2, "0");
+/** House titles by level: the level climbs one step for every three days of streak, up to 10. */
+const LEVEL_TITLES = [
+  "STARTING",
+  "STARTING",
+  "BUILDING",
+  "BUILDING",
+  "STEADY",
+  "STEADY",
+  "CONSISTENT",
+  "CONSISTENT",
+  "DISCIPLINED",
+  "UNSTOPPABLE",
+];
+const levelOf = (streakDays: number) => Math.min(10, 1 + Math.floor(streakDays / 3));
+/** How far along a task is, 0..1: steps ticked, the count against its goal, or simply done. */
+function progressOf(task: Task, record: DayRecord) {
+  if (isDone(record, task.id)) return 1;
+  if (task.kind === "parts") return (record.parts[task.id]?.length ?? 0) / Math.max(1, task.parts?.length ?? 1);
+  if (task.kind === "count") return Math.min(1, (record.counts[task.id] ?? 0) / Math.max(1, task.target ?? 1));
+  return 0;
+}
+
+/** A small progress round: an empty ring, an arc as a task fills, a solid disc when it's done. */
+function Round({ value, size = 12 }: { value: number; size?: number }) {
+  const r = size / 2 - 1.5;
+  const c = 2 * Math.PI * r;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true" className="round">
+      {value >= 1 ? (
+        <circle cx={size / 2} cy={size / 2} r={r + 1} fill="currentColor" />
+      ) : (
+        <>
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke="currentColor"
+            strokeOpacity="0.35"
+            strokeWidth="1.4"
+          />
+          {value > 0 && (
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={r}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeDasharray={`${c * value} ${c}`}
+              transform={`rotate(-90 ${size / 2} ${size / 2})`}
+              strokeLinecap="round"
+            />
+          )}
+        </>
+      )}
+    </svg>
+  );
+}
 
 type Toast = { label: string; message: string; tone: "win" | "nudge" | "slip" };
 
@@ -98,7 +159,7 @@ export default function App() {
   }, []);
   const routineState = useRoutine(uid, today);
   const historyState = useHistory(uid);
-  // Wait for the routine so the world is built once, with the right islands.
+  // Wait for the routine so the city is built once, with your board and the right tasks.
   if (!routineState.ready) return <div className="app-loading" aria-busy="true" aria-label="Loading your routine" />;
   return (
     <Main
@@ -137,7 +198,7 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
   const requiredDone = required.filter((task) => isDone(record, task.id)).length;
 
   const [currentRaw, setCurrent] = useState(() => unlockedIndex(history[dayKey(new Date())] ?? emptyDay(), tasks));
-  // The routine can shrink (an edit applied today), so never point past the last island.
+  // The routine can shrink (an edit applied today), so never point past the last task.
   const current = Math.min(currentRaw, LAST);
   const [panel, setPanel] = useState<"today" | "help" | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
@@ -146,6 +207,10 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
   const [dockHidden, setDockHidden] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** Bumped whenever something gets done, so your figure in the city acts it out. */
+  const [action, setAction] = useState({ seq: 0, index: 0 });
+  const [device] = useState(detectDevice);
+  const acted = (index: number) => setAction((a) => ({ seq: a.seq + 1, index }));
   const account = useAccountContext();
   const [muted, setMutedState] = useState(isMuted);
   useEffect(() => {
@@ -171,7 +236,7 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
     lastDay.current = today;
     setCurrent(unlockedIndex(history[today] ?? emptyDay(), tasks));
   }, [today, history, tasks]);
-  // When synced history first arrives, start on the first unfinished island (once per mount).
+  // When synced history first arrives, start on the first unfinished task (once per mount).
   const placed = useRef(ready);
   useEffect(() => {
     if (!ready || placed.current) return;
@@ -195,7 +260,7 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
     return next;
   }
 
-  /** Celebrates a finished task (or vow), and walks on to the next island when there is one. */
+  /** Celebrates a finished task (or vow), and moves on to the next task when there is one. */
   function celebrate(previous: DayRecord, next: DayRecord, index: number | null, optional = false) {
     // Sound: the core's ignition chord is played by the world, in sync with the light.
     if (optional) sfx.bonus();
@@ -226,8 +291,7 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
 
   /** Why something can't be committed right now, if it can't. */
   function blocker(index: number) {
-    if (index > unlocked)
-      return `Finish “${tasks[unlocked].title.replace(/\.$/, "")}” first. The bridge isn’t built yet.`;
+    if (index > unlocked) return `Finish “${tasks[unlocked].title.replace(/\.$/, "")}” first. One thing at a time.`;
     const item = tasks[index];
     const when = timing(item, minutes);
     if (when === "early" && item.opensAt !== undefined)
@@ -245,6 +309,7 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
     const reason = blocker(index);
     if (reason) return nudge(reason, blockerLabel(index));
     const next = save({ ...record, done: [...record.done, item.id] });
+    acted(index);
     celebrate(record, next, index, item.optional);
   }
   function undo(index: number) {
@@ -262,6 +327,7 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
     const ticked = record.parts[item.id] ?? [];
     const nextParts = ticked.includes(part) ? ticked.filter((p) => p !== part) : [...ticked, part];
     const finished = nextParts.length === (item.parts?.length ?? 0);
+    if (!ticked.includes(part)) acted(index);
     if (!ticked.includes(part) && !finished) sfx.pluck(nextParts.length);
     const done = record.done.filter((id) => id !== item.id);
     const next = save({
@@ -277,6 +343,7 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
     if (reason) return nudge(reason, blockerLabel(index));
     const value = Math.max(0, Math.min(item.max ?? 99, (record.counts[item.id] ?? 0) + delta));
     const reached = value >= (item.target ?? 1);
+    if (delta > 0) acted(index);
     if (delta > 0 && !(reached && !isDone(record, item.id))) sfx.pluck(value);
     const done = record.done.filter((id) => id !== item.id);
     const next = save({
@@ -381,7 +448,7 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
   function goTo(index: number) {
     const { current: now, unlocked: open } = stateRef.current;
     if (index > open && index > now) {
-      nudge(`Finish “${tasks[open].title.replace(/\.$/, "")}” first. The bridge isn’t built yet.`);
+      nudge(`Finish “${tasks[open].title.replace(/\.$/, "")}” first. One thing at a time.`);
       return false;
     }
     setCurrent(index);
@@ -439,10 +506,11 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
         setDockHidden((value) => !value);
         return;
       }
-      if (["arrowright", "arrowup", "d", "w"].includes(key)) {
+      // Arrows move through your tasks; W A S D walk your figure in the city.
+      if (["arrowright", "arrowup"].includes(key)) {
         e.preventDefault();
         if (!e.repeat) navigate(1);
-      } else if (["arrowleft", "arrowdown", "a", "s"].includes(key)) {
+      } else if (["arrowleft", "arrowdown"].includes(key)) {
         e.preventDefault();
         if (!e.repeat) navigate(-1);
       } else if (key === "e" && !e.repeat) {
@@ -511,18 +579,30 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
     status = `${deadlineName} IN ${Math.floor(left / 60)}H ${pad(left % 60)}M`;
   }
 
-  // ---------- World ----------
-  const worldTasks: WorldTask[] = tasks.map((item) => ({
-    done: isDone(record, item.id),
-    optional: !!item.optional,
-    icon: item.icon,
-  }));
+  // ---------- Home: your house in the city ----------
   const vowStates: VowState[] = vows.map((vow) =>
     record.slipped.includes(vow.id) ? "slipped" : isDone(record, vow.id) ? "kept" : "holding",
   );
-  const worldKey = `${tasks.map((item) => `${item.icon}${item.optional ? "*" : ""}`).join(",")}|${vows.length}`;
-  const counterIndex = tasks.findIndex((item) => item.kind === "count");
-  const launches = counterIndex >= 0 ? (record.counts[tasks[counterIndex].id] ?? 0) : 0;
+  const level = levelOf(currentStreak);
+  const score = scoreOf(record, routine);
+  const houseName = account.houseName || account.name?.split(/\s+/)[0] || "You";
+  const you: You = {
+    name: houseName,
+    title: LEVEL_TITLES[level - 1],
+    level,
+    tasks: tasks.map((item) => ({
+      id: item.id,
+      title: item.title,
+      icon: item.icon,
+      progress: progressOf(item, record),
+      optional: !!item.optional,
+    })),
+    kept: score.kept,
+    total: score.total,
+    next: unlocked,
+    complete,
+    action,
+  };
 
   // ---------- Current task, as shown in the dock ----------
   const done = isDone(record, task.id);
@@ -530,7 +610,7 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
   const locked = current > unlocked;
   const value = record.counts[task.id] ?? 0;
   const ticked = record.parts[task.id] ?? [];
-  let state = task.optional ? "BONUS" : "required";
+  let state = task.optional ? "BONUS" : "REQUIRED";
   if (done) state = "DONE";
   else if (locked) state = "LOCKED";
   else if (when === "early" && task.opensAt !== undefined) state = `OPENS ${formatMinutes(task.opensAt)}`;
@@ -539,7 +619,7 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
     task.kind === "count"
       ? value >= (task.max ?? 0)
         ? "Stretch hit"
-        : "Hold to log one application"
+        : "Hold to add one"
       : task.kind === "parts"
         ? done
           ? "Done. Tap to undo"
@@ -550,20 +630,10 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
 
   return (
     <div className={`game ${focus ? "immersive" : ""} ${dockHidden ? "dock-hidden" : ""}`}>
-      <World
-        // A different set of islands (an edited routine) needs a freshly built world.
-        key={worldKey}
-        current={current}
-        tasks={worldTasks}
-        unlocked={unlocked}
-        vows={vowStates}
-        launches={launches}
-        launchFrom={counterIndex}
-        complete={complete}
+      <CityScene
+        you={you}
         immersive={focus}
-        dockHidden={dockHidden}
-        onSelect={goTo}
-        onNavigate={navigate}
+        lowDetail={device === "phone"}
         onZoomReady={(controls) => (zoom.current = controls)}
       />
       <header className="game-header">
@@ -635,7 +705,7 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
       </header>
       <div className="editorial-overlay">
         <div className="world-eyebrow">
-          <span className="tiny-cross">+</span> SAME RING EVERY DAY. STRONGER EVERY LAP.
+          <span className="tiny-cross">+</span> SAME STREET EVERY DAY. STRONGER EVERY DAY.
         </div>
         <h1>
           Your day.
@@ -644,7 +714,7 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
           <span>promise at a time.</span>
         </h1>
         <p>
-          {tasks.length} islands. One circle.
+          {tasks.length} tasks. One house.
           <br />
           No skipping ahead.
         </p>
@@ -668,7 +738,9 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
             aria-label={`${item.title}${isDone(record, item.id) ? " Done." : i > unlocked ? " Locked." : ""}`}
             aria-current={i === current ? "step" : undefined}
           >
-            <span className="hud-node">{isDone(record, item.id) ? <Check size={9} /> : <span />}</span>
+            <span className="hud-node hud-round">
+              <Round value={progressOf(item, record)} size={13} />
+            </span>
             <span className="hud-label">{item.name}</span>
           </button>
         ))}
@@ -836,10 +908,15 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
       </section>
       <footer className="game-footer">
         <div className="movement-help">
-          <span className="touch-only">SWIPE TO WALK · PINCH TO ZOOM</span>
+          <span className="touch-only">TAP YOUR HOUSE TO MOVE · PINCH TO ZOOM</span>
           <span className="arrow-keys pointer-only">
             <kbd>←</kbd>
             <kbd>→</kbd>
+          </span>
+          <span className="pointer-only">TASKS</span>
+          <span className="footer-divider pointer-only" />
+          <span className="arrow-keys pointer-only">
+            <kbd>WASD</kbd>
           </span>
           <span className="pointer-only">WALK</span>
           <span className="footer-divider pointer-only" />
@@ -856,7 +933,7 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
         <div className="drag-help">
           <span className="drag-symbol">↔</span>
           <span className="pointer-only">DRAG TO LOOK AROUND</span>
-          <span className="touch-only">TWO FINGERS TO LOOK AROUND</span>
+          <span className="touch-only">DRAG TO LOOK AROUND</span>
         </div>
         <div className="footer-right">
           <button
@@ -939,13 +1016,13 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
               <Close />
             </button>
             <span className="panel-eyebrow">
-              {panel === "today" ? "ONE ISLAND AT A TIME. NO SHORTCUTS." : "HOW THE RING WORKS"}
+              {panel === "today" ? "ONE TASK AT A TIME. NO SHORTCUTS." : "HOW IT WORKS"}
             </span>
             <h2 id="panel-title">{panel === "today" ? "Today, honestly." : "Discipline, made visible."}</h2>
             <p>
               {panel === "today"
                 ? "Everything you promised yourself today, and where you stand."
-                : `Your day is a ring of ${tasks.length} islands around a dark core, one per task. You light it by doing the work, in order.`}
+                : `You live in the white house. Your ${tasks.length} tasks are on the board above it, and your figure acts out each one as you commit it, in order.`}
             </p>
             {panel === "today" ? (
               <>
@@ -967,12 +1044,12 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
                           <span>
                             <strong>{item.title}</strong>
                             <small>
-                              {item.optional ? "BONUS" : "required"}
+                              {item.optional ? "BONUS" : "REQUIRED"}
                               {item.kind === "count" && ` · ${record.counts[item.id] ?? 0}/${item.target}`}
                               {itemDone ? " · DONE" : i > unlocked ? " · LOCKED" : ""}
                             </small>
                           </span>
-                          {itemDone ? <Check size={14} /> : <Arrow size={16} />}
+                          <Round value={progressOf(item, record)} size={18} />
                         </button>
                       </div>
                     );
@@ -985,7 +1062,7 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
                           <strong>{vow.label}</strong>
                           <small>VOW · {vowStates[i].toUpperCase()}</small>
                         </span>
-                        {vowStates[i] === "kept" && <Check size={14} />}
+                        <Round value={vowStates[i] === "kept" ? 1 : 0} size={18} />
                       </button>
                     </div>
                   ))}
@@ -1017,21 +1094,21 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
                     <kbd>→</kbd>
                   </span>
                   <div>
-                    <strong>Walk and look around</strong>
+                    <strong>Move through the day and the city</strong>
                     <p>
-                      Arrow keys, A/D, swipe, or click an island to walk. Scroll, pinch or +/− to zoom from right next
-                      to the figure out to the whole system. Drag to orbit. 0 resets the camera, H hides the task panel,
-                      M mutes sound, L locks the screen.
+                      ← → step through your tasks. W A S D walk your figure, Space jumps, and clicking your plot sends
+                      it there. Click any house or building to visit it. Drag to orbit, scroll or pinch to zoom, R or 0
+                      brings you home. H hides the task panel, M mutes sound, L locks the screen.
                     </p>
                   </div>
                 </div>
                 <div className="help-row">
                   <span className="help-keys">⌇</span>
                   <div>
-                    <strong>Earn the next island</strong>
+                    <strong>Earn the next task</strong>
                     <p>
-                      Each task pushes its stone home and raises the bridge to the next. Bonus islands can be walked
-                      past, but doing them shines brighter. No skipping ahead.
+                      Each round on your board fills as you go: steps ticked, a count climbing, then a solid disc when
+                      it's done. Bonus tasks can be walked past, but doing them counts for more. No skipping ahead.
                     </p>
                   </div>
                 </div>
@@ -1050,10 +1127,10 @@ function Main({ routine, pending, saveRoutine, cancelPending, history, saveDay, 
                 <div className="help-row">
                   <span className="help-keys">◉</span>
                   <div>
-                    <strong>Light the core</strong>
+                    <strong>Seal the day, raise your level</strong>
                     <p>
-                      Every task sends a spoke of light to the core. Finish them all, keep both vows, and it ignites.
-                      That’s a perfect day, and it adds to your streak.
+                      Finish every required task and keep your vows: your figure cheers and goes to bed, and the day
+                      adds to your streak. Every three days of streak raises the level on your house sign.
                     </p>
                   </div>
                 </div>

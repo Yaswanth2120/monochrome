@@ -6,6 +6,13 @@ All notable changes to MonoChrome are recorded here. The format follows [Keep a 
 
 ### Added
 
+- **Home is the city.** After unlocking you live in the white house:
+  - your name and a streak-based level on the sign;
+  - your routine on the board above it;
+  - your figure acts out each task as you commit it (sink, stove, desk, mailbox, bus stop, bed…), waits at the next one, and goes to bed when the day is sealed.
+- **Progress rounds** replace checkboxes and checkmarks on the boards, the side list and the Today panel. They fill with steps and counts and turn solid when a task is done.
+- **Name on your house**, in Settings → Account (defaults to your Google first name).
+- The lock screen's wallpaper is the ring world playing a **demo day** with the sample routine.
 - **Installable app (PWA)** for iPhone, iPad, Android, Mac and Windows:
   - full-size app icons and a web app manifest;
   - a service worker that opens the app offline and picks up new versions as soon as they're deployed;
@@ -30,10 +37,12 @@ All notable changes to MonoChrome are recorded here. The format follows [Keep a 
 
 ### Fixed
 
+- The "REQUIRED" label in the dock and the Today list had turned lowercase.
 - The ring world's camera no longer snaps back to the automatic angle 3.5 seconds after you look around. Your angle is kept, turns with the ring as you walk, and resets with **0** or the reset button.
 
 ### Changed
 
+- The ring world moved from Home to the lock screen, and the city moved from the lock screen to Home. City keys no longer clash with the app's: E commits, H hides the dock, the arrows step through tasks, and W A S D walk.
 - **Phones and tablets:** the lock screen no longer shows the keypad all the time. The 3D city fills the screen with an **Enter Passcode** pill, and the keypad slides up when you tap it. Tap the city, swipe down or press Esc to hide it. It also hides itself after 25 seconds without a tap.
 - New accounts start from a neutral **sample routine** (14 tasks and 2 vows that show off steps, a counter, bonus tasks and a timed lights-out). Personal routines live only in each user's account.
 - The help panel lists your own vows instead of fixed ones.

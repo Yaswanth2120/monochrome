@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import LockScene from "./LockScene";
+import LockRing from "./LockRing";
 import { sfx } from "./sound";
 import { MonoLogo } from "./Logo";
 import {
@@ -7,6 +7,7 @@ import {
   AccountContext,
   authErrorMessage,
   confirmWithGoogle,
+  readLocalHouseName,
   savePasscode,
   signInWithGoogle,
   takeResetConfirmation,
@@ -110,11 +111,19 @@ export function Gate({ children }: { children: ReactNode }) {
   }, [identity]);
 
   const signedIn = account.status === "signedIn" ? account : null;
+  // Local-only mode keeps the house name in the browser.
+  const [localHouseName, setLocalHouseName] = useState(readLocalHouseName);
+  useEffect(() => {
+    const update = () => setLocalHouseName(readLocalHouseName());
+    window.addEventListener("monochrome:house-name", update);
+    return () => window.removeEventListener("monochrome:house-name", update);
+  }, []);
   const context = {
     uid: signedIn?.user.uid ?? null,
     name: signedIn?.user.name ?? null,
     user: signedIn?.user ?? null,
     passcode: signedIn?.passcode ?? null,
+    houseName: signedIn ? signedIn.houseName : localHouseName,
   };
 
   return (
@@ -165,8 +174,6 @@ function LockScreen({ account, onUnlock }: { account: Account; onUnlock: () => v
   const [lockedUntil, setLockedUntil] = useState(0);
   const [leaving, setLeaving] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [pulse, setPulse] = useState(0);
-  const [error, setError] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   /** Create mode: the first entry, waiting to be confirmed. */
@@ -196,7 +203,6 @@ function LockScreen({ account, onUnlock }: { account: Account; onUnlock: () => v
   const shake = useCallback(() => {
     sfx.denied();
     navigator.vibrate?.([60, 40, 60]);
-    setError((value) => value + 1);
     setShaking(false);
     requestAnimationFrame(() => setShaking(true));
     window.setTimeout(() => setShaking(false), 450);
@@ -301,7 +307,6 @@ function LockScreen({ account, onUnlock }: { account: Account; onUnlock: () => v
     (digit: string) => {
       if (!typing || waiting || success || busy || code.length >= PASSCODE_LENGTH) return;
       sfx.key();
-      setPulse((value) => value + 1);
       setActivity((n) => n + 1);
       const next = code + digit;
       setCode(next);
@@ -320,7 +325,6 @@ function LockScreen({ account, onUnlock }: { account: Account; onUnlock: () => v
           e.preventDefault();
           inputRef.current?.focus();
           sfx.key();
-          setPulse((value) => value + 1);
           setCode((value) => (value + e.key).slice(0, PASSCODE_LENGTH));
         }
         return;
@@ -449,7 +453,9 @@ function LockScreen({ account, onUnlock }: { account: Account; onUnlock: () => v
       aria-modal="true"
       aria-label={`Locked. ${title}.`}
     >
-      <LockScene signals={{ pulse, error, success }} lowDetail={device === "phone"} />
+      <div className="home-scene">
+        <LockRing success={success} />
+      </div>
       {device !== "desktop" && sheet === "open" && !success && (
         <button type="button" className="home-backdrop" aria-label="Hide keypad" onClick={closeSheet} />
       )}
@@ -489,7 +495,6 @@ function LockScreen({ account, onUnlock }: { account: Account; onUnlock: () => v
                       const value = e.target.value.replace(/\D/g, "").slice(0, PASSCODE_LENGTH);
                       if (value.length > code.length) {
                         sfx.key();
-                        setPulse((p) => p + 1);
                       }
                       setCode(value);
                     }}
@@ -525,17 +530,11 @@ function LockScreen({ account, onUnlock }: { account: Account; onUnlock: () => v
               </span>
               {accountLinks}
             </div>
-            <ul className="home-controls" aria-label="How to play">
+            <ul className="home-controls" aria-label="Look around">
               <li>
-                <kbd>Click</kbd> a house or building to visit · <kbd>W A S D</kbd> walk Rocky · <kbd>Space</kbd> jump
+                <kbd>Drag</kbd> look around · <kbd>Scroll</kbd> zoom · <kbd>0</kbd> reset view
               </li>
-              <li>
-                <kbd>Drag</kbd> orbit · <kbd>Scroll</kbd> zoom · <kbd>Right-drag</kbd> pan
-              </li>
-              <li>
-                <kbd>Q</kbd>
-                <kbd>E</kbd> rotate · <kbd>F</kbd> follow · <kbd>R</kbd> back to Rocky
-              </li>
+              <li>A demo day plays on the ring. Yours is behind the passcode.</li>
             </ul>
           </form>
         ) : (

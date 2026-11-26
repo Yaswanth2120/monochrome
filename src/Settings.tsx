@@ -1,6 +1,6 @@
 import { type FormEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import TaskGlyph from "./TaskGlyph";
-import { type AccountInfo, savePasscode, signOutAccount } from "./lib/account";
+import { type AccountInfo, HOUSE_NAME_MAX, saveHouseName, savePasscode, signOutAccount } from "./lib/account";
 import { PASSCODE_LENGTH, verifyPasscode } from "./lib/passcode";
 import type { Pending } from "./lib/useRoutine";
 import {
@@ -735,6 +735,56 @@ export default function Settings(props: Props) {
   );
 }
 
+/** The name on your house in the city. Empty means your Google first name (or "You"). */
+function HouseNameCard({ account }: { account: AccountInfo }) {
+  const fallback = account.name?.split(/\s+/)[0] || "You";
+  const [value, setValue] = useState(account.houseName ?? "");
+  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const changed = value.trim() !== (account.houseName ?? "");
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    try {
+      await saveHouseName(account.user, value);
+      setMessage({ text: value.trim() ? "Saved. Your house sign is updated." : `Back to “${fallback}”.`, ok: true });
+    } catch {
+      setMessage({ text: "Couldn't save it. Check your connection.", ok: false });
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form className="set-card" onSubmit={save}>
+      <h3>Name on your house</h3>
+      <p>Shown on your sign and checklist board in the city. Leave it empty to use “{fallback}”.</p>
+      <label className="set-field">
+        <span>House name</span>
+        <input
+          value={value}
+          maxLength={HOUSE_NAME_MAX}
+          placeholder={fallback}
+          onChange={(e) => {
+            setValue(e.target.value);
+            setMessage(null);
+          }}
+        />
+      </label>
+      <div className="set-card-foot">
+        {message && (
+          <span className={message.ok ? "set-ok" : "set-problem"} role="status">
+            {message.text}
+          </span>
+        )}
+        <button className="set-button" disabled={busy || !changed}>
+          {busy ? "Saving…" : "Save name"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function AccountSection({ account }: { account: AccountInfo }) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -752,6 +802,7 @@ function AccountSection({ account }: { account: AccountInfo }) {
             <p>Local mode: no accounts are set up in this build, so everything stays in this browser.</p>
           </div>
         </div>
+        <HouseNameCard account={account} />
       </section>
     );
 
@@ -795,6 +846,8 @@ function AccountSection({ account }: { account: AccountInfo }) {
           <dd>{account.user.email ?? "—"}</dd>
         </div>
       </dl>
+
+      <HouseNameCard account={account} />
 
       <form className="set-card" onSubmit={change}>
         <h3>Change passcode</h3>

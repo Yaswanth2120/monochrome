@@ -17,7 +17,13 @@ export type Account =
   | { status: "local" }
   | { status: "signedOut" }
   | { status: "error"; message: string }
-  | { status: "signedIn"; user: AccountUser; passcode: StoredPasscode | null | undefined };
+  | {
+      status: "signedIn";
+      user: AccountUser;
+      passcode: StoredPasscode | null | undefined;
+      /** The name on your house in the city; null means your Google first name. */
+      houseName: string | null;
+    };
 
 export function useAccount(): Account {
   const [account, setAccount] = useState<Account>(() =>
@@ -47,7 +53,7 @@ export function useAccount(): Account {
           return;
         }
         const profile: AccountUser = { uid: user.uid, name: user.displayName ?? "You", email: user.email };
-        setAccount({ status: "signedIn", user: profile, passcode: undefined });
+        setAccount({ status: "signedIn", user: profile, passcode: undefined, houseName: null });
         stopProfile = onSnapshot(
           doc(db, "users", user.uid),
           { includeMetadataChanges: true },
@@ -55,8 +61,15 @@ export function useAccount(): Account {
             // An empty answer from the offline cache doesn't mean "no passcode": wait for the server,
             // or a returning user would be asked to create a new one.
             if (!snap.exists() && snap.metadata.fromCache) return;
-            const stored = snap.data()?.passcode;
-            setAccount({ status: "signedIn", user: profile, passcode: isStoredPasscode(stored) ? stored : null });
+            const data = snap.data();
+            const stored = data?.passcode;
+            const house = typeof data?.houseName === "string" && data.houseName.trim() ? data.houseName.trim() : null;
+            setAccount({
+              status: "signedIn",
+              user: profile,
+              passcode: isStoredPasscode(stored) ? stored : null,
+              houseName: house,
+            });
           },
           () => setAccount({ status: "error", message: "Couldn't load your account. Check your connection." }),
         );
@@ -167,6 +180,38 @@ export async function savePasscode(user: AccountUser, code: string) {
   );
 }
 
+export const HOUSE_NAME_MAX = 16;
+const LOCAL_HOUSE_KEY = "monochrome.houseName";
+export function readLocalHouseName() {
+  try {
+    return localStorage.getItem(LOCAL_HOUSE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Set the name on your house (empty goes back to your Google first name). */
+export async function saveHouseName(user: AccountUser | null, name: string) {
+  const clean = name.trim().slice(0, HOUSE_NAME_MAX);
+  if (!user) {
+    try {
+      if (clean) localStorage.setItem(LOCAL_HOUSE_KEY, clean);
+      else localStorage.removeItem(LOCAL_HOUSE_KEY);
+    } catch {
+      // Without storage the name lasts the visit.
+    }
+    window.dispatchEvent(new Event("monochrome:house-name"));
+    return;
+  }
+  const { db } = await getFirebase();
+  const { doc, setDoc, serverTimestamp, deleteField } = await import("firebase/firestore");
+  await setDoc(
+    doc(db, "users", user.uid),
+    { houseName: clean || deleteField(), updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+}
+
 /** A short, human message for a failed sign-in, or null when the user simply closed the popup. */
 export function authErrorMessage(error: unknown): string | null {
   const code = (error as { code?: string }).code ?? "";
@@ -184,6 +229,13 @@ export type AccountInfo = {
   name: string | null;
   user: AccountUser | null;
   passcode: StoredPasscode | null;
+  houseName: string | null;
 };
-export const AccountContext = createContext<AccountInfo>({ uid: null, name: null, user: null, passcode: null });
+export const AccountContext = createContext<AccountInfo>({
+  uid: null,
+  name: null,
+  user: null,
+  passcode: null,
+  houseName: null,
+});
 export const useAccountContext = () => useContext(AccountContext);

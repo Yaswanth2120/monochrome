@@ -4073,3 +4073,71 @@ kbd {
     animation: none;
   }
 }
+
+/* ---------- Progress rounds (instead of checkmarks) ---------- */
+.round {
+  display: block;
+  flex: none;
+}
+.hud-node.hud-round,
+.hud-step.done .hud-node.hud-round {
+  width: auto;
+  height: auto;
+  border: 0;
+  background: transparent;
+  color: #6a6a74;
+}
+.hud-step.current .hud-node.hud-round {
+  color: #e4e4e8;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2px #0f0f11,
+    0 0 0 3px #63636f;
+}
+.hud-step.done .hud-node.hud-round {
+  color: #d4d4da;
+}
+.panel-quest .round {
+  color: #c4c4ca;
+}
+.panel-quest.done .round {
+  color: #f2f2f2;
+}
+
+/* ---------- Home is the city ---------- */
+.city-host {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  touch-action: none;
+}
+.city-host canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+/* The city's caption sits top-left under the logo (clear of your board), with "Back home" below it. */
+.city-host .home-caption {
+  top: calc(88px + env(safe-area-inset-top, 0px));
+  left: 3.7%;
+  translate: 0 0;
+}
+.city-host .home-back {
+  top: calc(134px + env(safe-area-inset-top, 0px));
+  left: 3.7%;
+}
+@media (max-width: 760px) {
+  .city-host .home-caption {
+    top: calc(70px + env(safe-area-inset-top, 0px));
+    left: 50%;
+    translate: -50% 0;
+  }
+  .city-host .home-back {
+    top: calc(112px + env(safe-area-inset-top, 0px));
+  }
+}
+/* The lock screen's ring wallpaper sits inside the scene area. */
+.home-scene {
+  isolation: isolate;
+}
